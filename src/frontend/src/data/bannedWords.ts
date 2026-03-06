@@ -1,0 +1,76 @@
+/**
+ * Banned word patterns for community post moderation.
+ * Covers: sexual, abusive, disrespectful, political, religious content.
+ */
+export const BANNED_PATTERNS: RegExp[] = [
+  // Sexual
+  /\bsex(ual|ually)?\b/i,
+  /\bporn(o|ography)?\b/i,
+  /\bnud(e|ity)\b/i,
+  /\berotic\b/i,
+  /\bxxxxx?\b/i,
+  /\blust(ful)?\b/i,
+  /\bfuck\b/i,
+  /\bshit\b/i,
+  /\basshole\b/i,
+  /\bbitch\b/i,
+  /\bcunt\b/i,
+  /\bdick\b/i,
+  /\bcock\b/i,
+  /\bpussy\b/i,
+  /\bboobs?\b/i,
+  /\bnaked\b/i,
+  /\bintercourse\b/i,
+  // Abusive / disrespectful
+  /\bidiom?\b/i,
+  /\bstupid\b/i,
+  /\bmoron\b/i,
+  /\bretard(ed)?\b/i,
+  /\bimbecile\b/i,
+  /\bdumbass\b/i,
+  /\bbastard\b/i,
+  /\bscumbag\b/i,
+  /\bwhore\b/i,
+  /\bslut\b/i,
+  /\bnigg(a|er)\b/i,
+  /\bchink\b/i,
+  /\bspic\b/i,
+  /\bkike\b/i,
+  /\bfaggot\b/i,
+  /\bcrap\b/i,
+  /\bdamn\b/i,
+  /\bhell\b/i,
+  /\bass\b/i,
+  // Political
+  /\bbjp\b/i,
+  /\bcongress party\b/i,
+  /\baap\b/i,
+  /\bvote for\b/i,
+  /\belection\b/i,
+  /\bpolitician\b/i,
+  /\bpolitical party\b/i,
+  /\bmanifesto\b/i,
+  /\bprotest\b/i,
+  /\bstrike\b/i,
+  /\bgovernment (is|are) (bad|corrupt|evil)\b/i,
+  /\bpropaganda\b/i,
+  /\bbanned\b/i,
+  /\bancap\b/i,
+  /\bcommunis[mt]\b/i,
+  /\bfascis[mt]\b/i,
+  /\bradicali[sz]e\b/i,
+  // Religious
+  /\binfidel\b/i,
+  /\bjihad\b/i,
+  /\bblasphemy\b/i,
+  /\bheathen\b/i,
+  /\bkafir\b/i,
+  /\bcrucify\b/i,
+  /\bbible thumper\b/i,
+  /\bchristard\b/i,
+  /\bislamo(phob|terror)\b/i,
+];
+
+export function containsBannedContent(text: string): boolean {
+  return BANNED_PATTERNS.some((pattern) => pattern.test(text));
+}

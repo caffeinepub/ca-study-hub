@@ -17,15 +17,18 @@ import {
   Moon,
   Palette,
   Save,
+  Sparkles,
   Sun,
   User,
 } from "lucide-react";
 import { motion } from "motion/react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { CA_Level } from "../backend.d";
+import { CATEGORY_LABELS, type QuoteCategory } from "../data/quotes";
 import { LEVEL_LABELS } from "../data/subjects";
 import { useSaveUserProfile, useUserProfile } from "../hooks/useQueries";
+import { type AutoRotateInterval, useQuotes } from "../hooks/useQuotes";
 import {
   THEME_DESCRIPTIONS,
   THEME_LABELS,
@@ -33,6 +36,14 @@ import {
   type Theme,
   useTheme,
 } from "../hooks/useTheme";
+
+const AUTO_ROTATE_LABELS: Record<AutoRotateInterval, string> = {
+  off: "Off",
+  "30": "Every 30 seconds",
+  "60": "Every 1 minute",
+  "120": "Every 2 minutes",
+  "300": "Every 5 minutes",
+};
 
 const THEMES: Theme[] = ["royal", "sunset", "anime", "cute", "lofi", "reality"];
 
@@ -49,6 +60,12 @@ export function SettingsPage() {
   const { data: profile } = useUserProfile();
   const saveProfile = useSaveUserProfile();
   const { theme, setTheme, colorMode, toggleColorMode } = useTheme();
+  const {
+    category: quoteCategory,
+    setCategory: setQuoteCategory,
+    autoRotate,
+    setAutoRotate,
+  } = useQuotes();
 
   const [name, setName] = useState(profile?.name || "");
   const [activeLevel, setActiveLevel] = useState<CA_Level>(
@@ -56,12 +73,12 @@ export function SettingsPage() {
       CA_Level.intermediate,
   );
 
-  // Sync name when profile loads
-  useState(() => {
-    if (profile?.name && !name) {
+  // Sync name when profile loads from backend
+  useEffect(() => {
+    if (profile?.name) {
       setName(profile.name);
     }
-  });
+  }, [profile?.name]);
 
   const handleSaveProfile = async () => {
     if (!name.trim()) {
@@ -362,6 +379,97 @@ export function SettingsPage() {
                 </motion.button>
               );
             })}
+          </div>
+        </section>
+
+        {/* Quotes Section */}
+        <section
+          className="rounded-2xl p-6"
+          style={{
+            background: "oklch(var(--card))",
+            border: "1px solid oklch(var(--border))",
+          }}
+        >
+          <div className="flex items-center gap-2 mb-5">
+            <div
+              className="w-8 h-8 rounded-lg flex items-center justify-center"
+              style={{ background: "oklch(var(--primary) / 0.1)" }}
+            >
+              <Sparkles
+                className="w-4 h-4"
+                style={{ color: "oklch(var(--primary))" }}
+              />
+            </div>
+            <h3 className="text-base font-heading font-semibold text-foreground">
+              Daily Quotes
+            </h3>
+          </div>
+
+          <div className="grid sm:grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <Label className="text-xs font-heading text-muted-foreground mb-1.5 block">
+                Auto-rotate Interval
+              </Label>
+              <Select
+                value={autoRotate}
+                onValueChange={(v) => setAutoRotate(v as AutoRotateInterval)}
+              >
+                <SelectTrigger
+                  className="h-10 font-heading text-sm"
+                  data-ocid="settings.quotes.auto_rotate.select"
+                >
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {(
+                    Object.keys(AUTO_ROTATE_LABELS) as AutoRotateInterval[]
+                  ).map((k) => (
+                    <SelectItem
+                      key={k}
+                      value={k}
+                      className="font-heading text-sm"
+                    >
+                      {AUTO_ROTATE_LABELS[k]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-xs font-heading text-muted-foreground mb-1.5 block">
+                Default Category
+              </Label>
+              <Select
+                value={quoteCategory}
+                onValueChange={(v) =>
+                  setQuoteCategory(v as QuoteCategory | "all")
+                }
+              >
+                <SelectTrigger
+                  className="h-10 font-heading text-sm"
+                  data-ocid="settings.quotes.category.select"
+                >
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all" className="font-heading text-sm">
+                    All Quotes
+                  </SelectItem>
+                  {(Object.keys(CATEGORY_LABELS) as QuoteCategory[]).map(
+                    (k) => (
+                      <SelectItem
+                        key={k}
+                        value={k}
+                        className="font-heading text-sm"
+                      >
+                        {CATEGORY_LABELS[k]}
+                      </SelectItem>
+                    ),
+                  )}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
         </section>
 

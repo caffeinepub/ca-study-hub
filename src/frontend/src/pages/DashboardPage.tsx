@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { motion } from "motion/react";
 import { CA_Level } from "../backend.d";
+import { QuoteWidget } from "../components/QuoteWidget";
 import { LEVEL_LABELS } from "../data/subjects";
 import {
   useChapterProgress,
@@ -24,7 +25,14 @@ import {
 
 interface DashboardPageProps {
   onNavigate: (
-    page: "timer" | "schedule" | "progress" | "pdf" | "library",
+    page:
+      | "timer"
+      | "schedule"
+      | "progress"
+      | "pdf"
+      | "library"
+      | "quotes"
+      | "community",
   ) => void;
 }
 
@@ -498,6 +506,11 @@ export function DashboardPage({ onNavigate }: DashboardPageProps) {
             </button>
           ))}
         </div>
+      </motion.div>
+
+      {/* Daily Quote Widget */}
+      <motion.div variants={itemVariants}>
+        <QuoteWidget onNavigate={() => onNavigate("quotes")} />
       </motion.div>
     </motion.div>
   );

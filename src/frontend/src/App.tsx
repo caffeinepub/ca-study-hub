@@ -4,10 +4,12 @@ import { useEffect, useState } from "react";
 import { AppLayout } from "./components/AppLayout";
 import { useInternetIdentity } from "./hooks/useInternetIdentity";
 import { useTheme } from "./hooks/useTheme";
+import { CommunityPage } from "./pages/CommunityPage";
 import { DashboardPage } from "./pages/DashboardPage";
 import { ICAIPapersPage } from "./pages/ICAIPapersPage";
 import { LibraryPage } from "./pages/LibraryPage";
 import { ProgressPage } from "./pages/ProgressPage";
+import { QuotesPage } from "./pages/QuotesPage";
 import { ScheduleMakerPage } from "./pages/ScheduleMakerPage";
 import { SettingsPage } from "./pages/SettingsPage";
 import { TimerPage } from "./pages/TimerPage";
@@ -19,6 +21,8 @@ type Page =
   | "progress"
   | "pdf"
   | "library"
+  | "quotes"
+  | "community"
   | "settings";
 
 function LoadingScreen() {
@@ -82,6 +86,10 @@ export default function App() {
         return <ICAIPapersPage />;
       case "library":
         return <LibraryPage />;
+      case "quotes":
+        return <QuotesPage />;
+      case "community":
+        return <CommunityPage />;
       case "settings":
         return <SettingsPage />;
       default:

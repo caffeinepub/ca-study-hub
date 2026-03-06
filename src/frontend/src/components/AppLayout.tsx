@@ -17,8 +17,10 @@ import {
   Menu,
   Moon,
   Settings,
+  Sparkles,
   Sun,
   Timer,
+  Users,
   X,
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
@@ -34,6 +36,8 @@ type Page =
   | "progress"
   | "pdf"
   | "library"
+  | "quotes"
+  | "community"
   | "settings";
 
 interface AppLayoutProps {
@@ -78,6 +82,18 @@ const NAV_ITEMS = [
     label: "Library",
     icon: BookOpen,
     ocid: "nav.library.link",
+  },
+  {
+    id: "quotes" as Page,
+    label: "Daily Quotes",
+    icon: Sparkles,
+    ocid: "nav.quotes.link",
+  },
+  {
+    id: "community" as Page,
+    label: "Community",
+    icon: Users,
+    ocid: "nav.community.link",
   },
   {
     id: "settings" as Page,

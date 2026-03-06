@@ -1,0 +1,675 @@
+export type QuoteCategory =
+  | "motivation"
+  | "success"
+  | "finance"
+  | "balance"
+  | "global";
+
+export interface Quote {
+  id: string;
+  text: string;
+  author: string;
+  source?: string;
+  category: QuoteCategory;
+}
+
+export const CATEGORY_LABELS: Record<QuoteCategory, string> = {
+  motivation: "Motivation & Perseverance",
+  success: "Success & Ambition",
+  finance: "CA & Finance Wisdom",
+  balance: "Life & Balance",
+  global: "Global Leaders & Philosophers",
+};
+
+export const QUOTES: Quote[] = [
+  // ── MOTIVATION & PERSEVERANCE ──────────────────────────────────────
+  {
+    id: "m1",
+    text: "It does not matter how slowly you go as long as you do not stop.",
+    author: "Confucius",
+    category: "motivation",
+  },
+  {
+    id: "m2",
+    text: "The secret of getting ahead is getting started.",
+    author: "Mark Twain",
+    category: "motivation",
+  },
+  {
+    id: "m3",
+    text: "Hardships often prepare ordinary people for an extraordinary destiny.",
+    author: "C.S. Lewis",
+    category: "motivation",
+  },
+  {
+    id: "m4",
+    text: "You don't have to be great to start, but you have to start to be great.",
+    author: "Zig Ziglar",
+    category: "motivation",
+  },
+  {
+    id: "m5",
+    text: "The pain you feel today will be the strength you feel tomorrow.",
+    author: "Arnold Schwarzenegger",
+    category: "motivation",
+  },
+  {
+    id: "m6",
+    text: "Energy and persistence conquer all things.",
+    author: "Benjamin Franklin",
+    category: "motivation",
+  },
+  {
+    id: "m7",
+    text: "Our greatest glory is not in never falling, but in rising every time we fall.",
+    author: "Oliver Goldsmith",
+    category: "motivation",
+  },
+  {
+    id: "m8",
+    text: "Perseverance is not a long race; it is many short races one after the other.",
+    author: "Walter Elliot",
+    category: "motivation",
+  },
+  {
+    id: "m9",
+    text: "I hated every minute of training, but I said, don't quit. Suffer now and live the rest of your life as a champion.",
+    author: "Muhammad Ali",
+    category: "motivation",
+  },
+  {
+    id: "m10",
+    text: "With the new day comes new strength and new thoughts.",
+    author: "Eleanor Roosevelt",
+    category: "motivation",
+  },
+  {
+    id: "m11",
+    text: "Believe you can and you're halfway there.",
+    author: "Theodore Roosevelt",
+    category: "motivation",
+  },
+  {
+    id: "m12",
+    text: "The harder you work for something, the greater you'll feel when you achieve it.",
+    author: "Anonymous",
+    category: "motivation",
+  },
+  {
+    id: "m13",
+    text: "Push yourself, because no one else is going to do it for you.",
+    author: "Anonymous",
+    category: "motivation",
+  },
+  {
+    id: "m14",
+    text: "Success is no accident. It is hard work, perseverance, learning, studying, sacrifice, and most of all, love of what you are doing.",
+    author: "Pelé",
+    category: "motivation",
+  },
+  {
+    id: "m15",
+    text: "Strength does not come from physical capacity. It comes from an indomitable will.",
+    author: "Mahatma Gandhi",
+    category: "motivation",
+  },
+  {
+    id: "m16",
+    text: "Do something today that your future self will thank you for.",
+    author: "Sean Patrick Flanery",
+    category: "motivation",
+  },
+  {
+    id: "m17",
+    text: "Little things make big days.",
+    author: "Anonymous",
+    category: "motivation",
+  },
+  {
+    id: "m18",
+    text: "Dream it. Wish it. Do it.",
+    author: "Anonymous",
+    category: "motivation",
+  },
+  {
+    id: "m19",
+    text: "It's going to be hard, but hard is not impossible.",
+    author: "Anonymous",
+    category: "motivation",
+  },
+  {
+    id: "m20",
+    text: "The expert in anything was once a beginner.",
+    author: "Helen Hayes",
+    category: "motivation",
+  },
+
+  // ── SUCCESS & AMBITION ─────────────────────────────────────────────
+  {
+    id: "s1",
+    text: "Success is not final, failure is not fatal: it is the courage to continue that counts.",
+    author: "Winston Churchill",
+    category: "success",
+  },
+  {
+    id: "s2",
+    text: "Don't watch the clock; do what it does. Keep going.",
+    author: "Sam Levenson",
+    category: "success",
+  },
+  {
+    id: "s3",
+    text: "Success usually comes to those who are too busy to be looking for it.",
+    author: "Henry David Thoreau",
+    category: "success",
+  },
+  {
+    id: "s4",
+    text: "In the middle of every difficulty lies opportunity.",
+    author: "Albert Einstein",
+    category: "success",
+  },
+  {
+    id: "s5",
+    text: "If you can dream it, you can do it.",
+    author: "Walt Disney",
+    category: "success",
+  },
+  {
+    id: "s6",
+    text: "It always seems impossible until it's done.",
+    author: "Nelson Mandela",
+    category: "success",
+  },
+  {
+    id: "s7",
+    text: "Don't limit your challenges, challenge your limits.",
+    author: "Jerry Dunn",
+    category: "success",
+  },
+  {
+    id: "s8",
+    text: "The future belongs to those who believe in the beauty of their dreams.",
+    author: "Eleanor Roosevelt",
+    category: "success",
+  },
+  {
+    id: "s9",
+    text: "It is not about being the best. It is about being better than you were yesterday.",
+    author: "Anonymous",
+    category: "success",
+  },
+  {
+    id: "s10",
+    text: "The only place where success comes before work is in the dictionary.",
+    author: "Vidal Sassoon",
+    category: "success",
+  },
+  {
+    id: "s11",
+    text: "Leadership is not about being in charge. It is about taking care of those in your charge.",
+    author: "Simon Sinek",
+    category: "success",
+  },
+  {
+    id: "s12",
+    text: "The biggest risk is not taking any risk. In a world that's changing really quickly, the only strategy that is guaranteed to fail is not taking risks.",
+    author: "Mark Zuckerberg",
+    category: "success",
+  },
+  {
+    id: "s13",
+    text: "If you do what you love, you'll never work a day in your life.",
+    author: "Marc Anthony",
+    category: "success",
+  },
+  {
+    id: "s14",
+    text: "The most important thing is to try and inspire people so that they can be great in whatever they want to do.",
+    author: "Kobe Bryant",
+    category: "success",
+  },
+  {
+    id: "s15",
+    text: "Either you run the day or the day runs you.",
+    author: "Jim Rohn",
+    category: "success",
+  },
+  {
+    id: "s16",
+    text: "Don't stop when you're tired. Stop when you're done.",
+    author: "David Goggins",
+    category: "success",
+  },
+  {
+    id: "s17",
+    text: "I find that the harder I work, the more luck I seem to have.",
+    author: "Thomas Jefferson",
+    category: "success",
+  },
+  {
+    id: "s18",
+    text: "The most common way people give up their power is by thinking they don't have any.",
+    author: "Alice Walker",
+    category: "success",
+  },
+  {
+    id: "s19",
+    text: "A person who never made a mistake never tried anything new.",
+    author: "Albert Einstein",
+    category: "success",
+  },
+  {
+    id: "s20",
+    text: "Be the change that you wish to see in the world.",
+    author: "Mahatma Gandhi",
+    category: "success",
+  },
+  {
+    id: "s21",
+    text: "Chase the vision, not the money; the money will end up following you.",
+    author: "Tony Hsieh",
+    category: "success",
+  },
+  {
+    id: "s22",
+    text: "I never dreamed about success. I worked for it.",
+    author: "Estée Lauder",
+    category: "success",
+  },
+
+  // ── CA & FINANCE WISDOM ────────────────────────────────────────────
+  {
+    id: "f1",
+    text: "Rule No.1: Never lose money. Rule No.2: Never forget rule No.1.",
+    author: "Warren Buffett",
+    category: "finance",
+  },
+  {
+    id: "f2",
+    text: "The stock market is a device for transferring money from the impatient to the patient.",
+    author: "Warren Buffett",
+    category: "finance",
+  },
+  {
+    id: "f3",
+    text: "An investment in knowledge pays the best interest.",
+    author: "Benjamin Franklin",
+    category: "finance",
+  },
+  {
+    id: "f4",
+    text: "Know what you own, and know why you own it.",
+    author: "Peter Lynch",
+    category: "finance",
+  },
+  {
+    id: "f5",
+    text: "The four most dangerous words in investing are: 'this time it's different.'",
+    author: "Sir John Templeton",
+    category: "finance",
+  },
+  {
+    id: "f6",
+    text: "Wide diversification is only required when investors do not understand what they are doing.",
+    author: "Warren Buffett",
+    category: "finance",
+  },
+  {
+    id: "f7",
+    text: "The person who doesn't know where his next dollar is coming from usually doesn't know where his last dollar went.",
+    author: "Anonymous",
+    category: "finance",
+  },
+  {
+    id: "f8",
+    text: "A budget is telling your money where to go instead of wondering where it went.",
+    author: "John C. Maxwell",
+    category: "finance",
+  },
+  {
+    id: "f9",
+    text: "It's not how much money you make, but how much money you keep, how hard it works for you, and how many generations you keep it for.",
+    author: "Robert Kiyosaki",
+    category: "finance",
+  },
+  {
+    id: "f10",
+    text: "The goal of accounting is to provide economic information for making economic decisions.",
+    author: "Anonymous",
+    source: "Accounting Principle",
+    category: "finance",
+  },
+  {
+    id: "f11",
+    text: "Wealth is the ability to fully experience life.",
+    author: "Henry David Thoreau",
+    category: "finance",
+  },
+  {
+    id: "f12",
+    text: "Do not save what is left after spending, but spend what is left after saving.",
+    author: "Warren Buffett",
+    category: "finance",
+  },
+  {
+    id: "f13",
+    text: "The root of all financial problems is not recognizing the difference between needs and wants.",
+    author: "Anonymous",
+    category: "finance",
+  },
+  {
+    id: "f14",
+    text: "Money is a terrible master but an excellent servant.",
+    author: "P.T. Barnum",
+    category: "finance",
+  },
+  {
+    id: "f15",
+    text: "Finance is not merely about making money. It's about achieving our deep goals and protecting the fruits of our labor.",
+    author: "Robert J. Shiller",
+    category: "finance",
+  },
+  {
+    id: "f16",
+    text: "Accounting is the language of business.",
+    author: "Warren Buffett",
+    category: "finance",
+  },
+  {
+    id: "f17",
+    text: "Artha (wealth) must be acquired through righteous means and used in the service of others.",
+    author: "Chanakya",
+    source: "Arthashastra",
+    category: "finance",
+  },
+  {
+    id: "f18",
+    text: "One who lacks the knowledge of accounts is blind to the progress of his own wealth.",
+    author: "Chanakya",
+    source: "Chanakya Niti",
+    category: "finance",
+  },
+  {
+    id: "f19",
+    text: "The CA qualification is a passport to professional excellence.",
+    author: "ICAI",
+    source: "Institute of Chartered Accountants of India",
+    category: "finance",
+  },
+  {
+    id: "f20",
+    text: "Numbers have an important story to tell. They rely on you to give them a clear and convincing voice.",
+    author: "Stephen Few",
+    category: "finance",
+  },
+  {
+    id: "f21",
+    text: "In the world of business, the people who are most successful are those who are doing what they love.",
+    author: "Warren Buffett",
+    category: "finance",
+  },
+  {
+    id: "f22",
+    text: "Wealth consists not in having great possessions, but in having few wants.",
+    author: "Epictetus",
+    category: "finance",
+  },
+
+  // ── LIFE & BALANCE ─────────────────────────────────────────────────
+  {
+    id: "b1",
+    text: "Happiness is not something readymade. It comes from your own actions.",
+    author: "Dalai Lama",
+    category: "balance",
+  },
+  {
+    id: "b2",
+    text: "In the middle of difficulty lies opportunity.",
+    author: "Albert Einstein",
+    category: "balance",
+  },
+  {
+    id: "b3",
+    text: "Almost everything will work again if you unplug it for a few minutes, including you.",
+    author: "Anne Lamott",
+    category: "balance",
+  },
+  {
+    id: "b4",
+    text: "You cannot pour from an empty cup. Take care of yourself first.",
+    author: "Anonymous",
+    category: "balance",
+  },
+  {
+    id: "b5",
+    text: "Balance is not something you find; it's something you create.",
+    author: "Jana Kingsford",
+    category: "balance",
+  },
+  {
+    id: "b6",
+    text: "The time to relax is when you don't have time for it.",
+    author: "Sydney J. Harris",
+    category: "balance",
+  },
+  {
+    id: "b7",
+    text: "Rest when you're weary. Refresh and renew yourself, your body, your mind, your spirit.",
+    author: "Ralph Marston",
+    category: "balance",
+  },
+  {
+    id: "b8",
+    text: "Take care of your body. It's the only place you have to live.",
+    author: "Jim Rohn",
+    category: "balance",
+  },
+  {
+    id: "b9",
+    text: "The greatest weapon against stress is our ability to choose one thought over another.",
+    author: "William James",
+    category: "balance",
+  },
+  {
+    id: "b10",
+    text: "Wherever you are, be all there.",
+    author: "Jim Elliot",
+    category: "balance",
+  },
+  {
+    id: "b11",
+    text: "For every minute you remain angry, you give up sixty seconds of peace of mind.",
+    author: "Ralph Waldo Emerson",
+    category: "balance",
+  },
+  {
+    id: "b12",
+    text: "Do not dwell in the past, do not dream of the future, concentrate the mind on the present moment.",
+    author: "Buddha",
+    category: "balance",
+  },
+  {
+    id: "b13",
+    text: "Life is not measured by the number of breaths we take, but by the moments that take our breath away.",
+    author: "Maya Angelou",
+    category: "balance",
+  },
+  {
+    id: "b14",
+    text: "Smile in the mirror every morning and you'll start to see a big difference in your life.",
+    author: "Yoko Ono",
+    category: "balance",
+  },
+  {
+    id: "b15",
+    text: "It is not the load that breaks you down; it's the way you carry it.",
+    author: "Lena Horne",
+    category: "balance",
+  },
+  {
+    id: "b16",
+    text: "Sometimes the most productive thing you can do is relax.",
+    author: "Mark Black",
+    category: "balance",
+  },
+  {
+    id: "b17",
+    text: "A calm mind brings inner strength and self-confidence.",
+    author: "Dalai Lama",
+    category: "balance",
+  },
+  {
+    id: "b18",
+    text: "Nourishing yourself in a way that helps you blossom in the direction you want to go is attainable.",
+    author: "Deborah Day",
+    category: "balance",
+  },
+
+  // ── GLOBAL LEADERS & PHILOSOPHERS ──────────────────────────────────
+  {
+    id: "g1",
+    text: "Per aspera ad astra — Through hardship to the stars.",
+    author: "Virgil",
+    source: "Latin Proverb",
+    category: "global",
+  },
+  {
+    id: "g2",
+    text: "Carpe Diem — Seize the day.",
+    author: "Horace",
+    source: "Latin Proverb",
+    category: "global",
+  },
+  {
+    id: "g3",
+    text: "Dum spiro, spero — While I breathe, I hope.",
+    author: "Cicero",
+    source: "Latin Proverb",
+    category: "global",
+  },
+  {
+    id: "g4",
+    text: "Knowing yourself is the beginning of all wisdom.",
+    author: "Aristotle",
+    category: "global",
+  },
+  {
+    id: "g5",
+    text: "The only true wisdom is in knowing you know nothing.",
+    author: "Socrates",
+    category: "global",
+  },
+  {
+    id: "g6",
+    text: "You have a right to perform your prescribed duties, but you are not entitled to the fruits of your actions.",
+    author: "Lord Krishna",
+    source: "Bhagavad Gita, Chapter 2, Verse 47",
+    category: "global",
+  },
+  {
+    id: "g7",
+    text: "Let not the fruit of action be your motive, nor let your attachment be to inaction.",
+    author: "Lord Krishna",
+    source: "Bhagavad Gita",
+    category: "global",
+  },
+  {
+    id: "g8",
+    text: "Arise, awake, and stop not till the goal is reached.",
+    author: "Swami Vivekananda",
+    category: "global",
+  },
+  {
+    id: "g9",
+    text: "You have to grow from the inside out. None can teach you, none can make you spiritual. There is no other teacher but your own soul.",
+    author: "Swami Vivekananda",
+    category: "global",
+  },
+  {
+    id: "g10",
+    text: "Be a lamp unto yourself.",
+    author: "Gautama Buddha",
+    source: "Buddhist Philosophy",
+    category: "global",
+  },
+  {
+    id: "g11",
+    text: "Give me six hours to chop down a tree and I will spend the first four sharpening the axe.",
+    author: "Abraham Lincoln",
+    category: "global",
+  },
+  {
+    id: "g12",
+    text: "Education is the most powerful weapon which you can use to change the world.",
+    author: "Nelson Mandela",
+    category: "global",
+  },
+  {
+    id: "g13",
+    text: "Live as if you were to die tomorrow. Learn as if you were to live forever.",
+    author: "Mahatma Gandhi",
+    category: "global",
+  },
+  {
+    id: "g14",
+    text: "The mind is everything. What you think you become.",
+    author: "Gautama Buddha",
+    category: "global",
+  },
+  {
+    id: "g15",
+    text: "Even if you are a minority of one, the truth is the truth.",
+    author: "Mahatma Gandhi",
+    category: "global",
+  },
+  {
+    id: "g16",
+    text: "Do not go where the path may lead, go instead where there is no path and leave a trail.",
+    author: "Ralph Waldo Emerson",
+    category: "global",
+  },
+  {
+    id: "g17",
+    text: "Thousands of candles can be lighted from a single candle, and the life of the candle will not be shortened.",
+    author: "Gautama Buddha",
+    category: "global",
+  },
+  {
+    id: "g18",
+    text: "Udyamena hi sidhyanti karyāni na manorathaiḥ — It is through effort that goals are achieved, not by mere wishes.",
+    author: "Chanakya",
+    source: "Sanskrit Proverb",
+    category: "global",
+  },
+  {
+    id: "g19",
+    text: "The roots of education are bitter, but the fruit is sweet.",
+    author: "Aristotle",
+    category: "global",
+  },
+  {
+    id: "g20",
+    text: "In learning you will teach, and in teaching you will learn.",
+    author: "Phil Collins",
+    category: "global",
+  },
+  {
+    id: "g21",
+    text: "Excellence is never an accident. It is always the result of high intention, sincere effort, and intelligent execution.",
+    author: "Aristotle",
+    category: "global",
+  },
+  {
+    id: "g22",
+    text: "Try not to become a man of success, but rather try to become a man of value.",
+    author: "Albert Einstein",
+    category: "global",
+  },
+  {
+    id: "g23",
+    text: "The secret of success is to do the common things uncommonly well.",
+    author: "John D. Rockefeller",
+    category: "global",
+  },
+];
