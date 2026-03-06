@@ -7,10 +7,12 @@ import {
 } from "@/components/ui/tooltip";
 import {
   BarChart2,
-  Calendar,
+  BookOpen,
+  CalendarClock,
   Crown,
   GraduationCap,
   LayoutDashboard,
+  LogIn,
   LogOut,
   Menu,
   Moon,
@@ -28,9 +30,10 @@ import { useTheme } from "../hooks/useTheme";
 type Page =
   | "dashboard"
   | "timer"
-  | "timetable"
+  | "schedule"
   | "progress"
   | "pdf"
+  | "library"
   | "settings";
 
 interface AppLayoutProps {
@@ -53,10 +56,10 @@ const NAV_ITEMS = [
     ocid: "nav.timer.link",
   },
   {
-    id: "timetable" as Page,
-    label: "Timetable",
-    icon: Calendar,
-    ocid: "nav.timetable.link",
+    id: "schedule" as Page,
+    label: "Schedule Maker",
+    icon: CalendarClock,
+    ocid: "nav.schedule.link",
   },
   {
     id: "progress" as Page,
@@ -69,6 +72,12 @@ const NAV_ITEMS = [
     label: "ICAI Papers",
     icon: GraduationCap,
     ocid: "nav.pdf.link",
+  },
+  {
+    id: "library" as Page,
+    label: "Library",
+    icon: BookOpen,
+    ocid: "nav.library.link",
   },
   {
     id: "settings" as Page,
@@ -84,7 +93,7 @@ export function AppLayout({
   children,
 }: AppLayoutProps) {
   const [mobileOpen, setMobileOpen] = useState(false);
-  const { clear } = useInternetIdentity();
+  const { identity, login, clear } = useInternetIdentity();
   const { data: profile } = useUserProfile();
   const { colorMode, toggleColorMode } = useTheme();
 
@@ -185,20 +194,20 @@ export function AppLayout({
                   border: "1px solid oklch(var(--primary) / 0.3)",
                 }}
               >
-                {initials}
+                {identity ? initials : "G"}
               </div>
               <div className="flex-1 min-w-0">
                 <p
                   className="text-sm font-heading font-medium truncate"
                   style={{ color: "oklch(var(--sidebar-foreground))" }}
                 >
-                  {profile?.name || "CA Student"}
+                  {identity ? profile?.name || "CA Student" : "Guest"}
                 </p>
                 <p
                   className="text-xs"
                   style={{ color: "oklch(var(--muted-foreground))" }}
                 >
-                  ICAI Student
+                  {identity ? "ICAI Student" : "Browsing as guest"}
                 </p>
               </div>
             </div>
@@ -228,16 +237,30 @@ export function AppLayout({
                   </>
                 )}
               </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => clear()}
-                className="flex-1 h-8 text-xs font-heading justify-start gap-2"
-                style={{ color: "oklch(var(--muted-foreground))" }}
-              >
-                <LogOut className="w-3.5 h-3.5" />
-                Sign Out
-              </Button>
+              {identity ? (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => clear()}
+                  className="flex-1 h-8 text-xs font-heading justify-start gap-2"
+                  style={{ color: "oklch(var(--muted-foreground))" }}
+                >
+                  <LogOut className="w-3.5 h-3.5" />
+                  Sign Out
+                </Button>
+              ) : (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => void login()}
+                  className="flex-1 h-8 text-xs font-heading justify-start gap-2"
+                  style={{ color: "oklch(var(--primary))" }}
+                  data-ocid="nav.signin.button"
+                >
+                  <LogIn className="w-3.5 h-3.5" />
+                  Sign In
+                </Button>
+              )}
             </div>
           </div>
         </aside>
@@ -377,19 +400,36 @@ export function AppLayout({
                     className="p-4 border-t"
                     style={{ borderColor: "oklch(var(--sidebar-border))" }}
                   >
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => {
-                        clear();
-                        setMobileOpen(false);
-                      }}
-                      className="w-full h-9 text-sm font-heading justify-start gap-2"
-                      style={{ color: "oklch(var(--muted-foreground))" }}
-                    >
-                      <LogOut className="w-4 h-4" />
-                      Sign Out
-                    </Button>
+                    {identity ? (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          clear();
+                          setMobileOpen(false);
+                        }}
+                        className="w-full h-9 text-sm font-heading justify-start gap-2"
+                        style={{ color: "oklch(var(--muted-foreground))" }}
+                      >
+                        <LogOut className="w-4 h-4" />
+                        Sign Out
+                      </Button>
+                    ) : (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          void login();
+                          setMobileOpen(false);
+                        }}
+                        className="w-full h-9 text-sm font-heading justify-start gap-2"
+                        style={{ color: "oklch(var(--primary))" }}
+                        data-ocid="nav.signin.button"
+                      >
+                        <LogIn className="w-4 h-4" />
+                        Sign In
+                      </Button>
+                    )}
                   </div>
                 </motion.aside>
               </>

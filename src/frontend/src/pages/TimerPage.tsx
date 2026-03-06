@@ -1,15 +1,21 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
+import { Label } from "@/components/ui/label";
+import {
   Select,
   SelectContent,
-  SelectGroup,
   SelectItem,
-  SelectLabel,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Slider } from "@/components/ui/slider";
+import { Switch } from "@/components/ui/switch";
 import {
   ChevronDown,
   Clock,
@@ -18,6 +24,7 @@ import {
   Play,
   RotateCcw,
   Save,
+  Settings2,
   Timer,
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
@@ -35,35 +42,133 @@ import { nanoid } from "../utils/nanoid";
 type TimerMode = "pomodoro" | "stopwatch";
 type PomodoroPhase = "work" | "shortBreak" | "longBreak";
 
-const POMODORO_DURATIONS: Record<PomodoroPhase, number> = {
-  work: 25 * 60,
-  shortBreak: 5 * 60,
-  longBreak: 15 * 60,
+// ── Timer colour accent definitions ─────────────────────────────────────────
+const COLOR_PRESETS = [
+  { id: "royal", label: "Royal", value: "var(--primary)" },
+  { id: "rose", label: "Rose", oklch: "0.65 0.22 10" },
+  { id: "teal", label: "Teal", oklch: "0.62 0.14 185" },
+  { id: "amber", label: "Amber", oklch: "0.75 0.17 65" },
+  { id: "violet", label: "Violet", oklch: "0.62 0.22 295" },
+] as const;
+
+type ColorPresetId = (typeof COLOR_PRESETS)[number]["id"];
+
+// ── Persisted settings ───────────────────────────────────────────────────────
+interface TimerSettings {
+  focusMins: number;
+  shortBreakMins: number;
+  longBreakMins: number;
+  longBreakAfter: number; // cycles before long break
+  autoStart: boolean;
+  soundEnabled: boolean;
+  colorAccent: ColorPresetId;
+}
+
+const DEFAULT_SETTINGS: TimerSettings = {
+  focusMins: 25,
+  shortBreakMins: 5,
+  longBreakMins: 15,
+  longBreakAfter: 4,
+  autoStart: false,
+  soundEnabled: true,
+  colorAccent: "royal",
 };
 
-const PHASE_LABELS: Record<PomodoroPhase, string> = {
-  work: "Focus Time",
-  shortBreak: "Short Break",
-  longBreak: "Long Break",
-};
+const SETTINGS_KEY = "ca_timer_settings";
 
-const PHASE_COLORS: Record<PomodoroPhase, string> = {
-  work: "var(--primary)",
-  shortBreak: "var(--chart-2)",
-  longBreak: "var(--chart-3)",
-};
+function loadSettings(): TimerSettings {
+  try {
+    const raw = localStorage.getItem(SETTINGS_KEY);
+    if (!raw) return DEFAULT_SETTINGS;
+    return { ...DEFAULT_SETTINGS, ...JSON.parse(raw) };
+  } catch {
+    return DEFAULT_SETTINGS;
+  }
+}
 
+function saveSettings(s: TimerSettings): void {
+  localStorage.setItem(SETTINGS_KEY, JSON.stringify(s));
+}
+
+// ── Helpers ──────────────────────────────────────────────────────────────────
 function formatTime(seconds: number): string {
   const m = Math.floor(seconds / 60);
   const s = seconds % 60;
   return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
 }
 
+function getColorString(id: ColorPresetId): string {
+  const preset = COLOR_PRESETS.find((c) => c.id === id);
+  if (!preset) return "var(--primary)";
+  if ("oklch" in preset) return preset.oklch;
+  return preset.value;
+}
+
+function sendNotification(title: string, body: string): void {
+  if (!("Notification" in window)) return;
+  if (Notification.permission === "granted") {
+    new Notification(title, { body, icon: "/favicon.ico" });
+  }
+}
+
+// ── Colour dot chip ──────────────────────────────────────────────────────────
+function ColorChip({
+  preset,
+  active,
+  index,
+  onClick,
+}: {
+  preset: (typeof COLOR_PRESETS)[number];
+  active: boolean;
+  index: number;
+  onClick: () => void;
+}) {
+  const colorVal =
+    "oklch" in preset
+      ? `oklch(${preset.oklch})`
+      : `oklch(${getColorString(preset.id)})`;
+
+  return (
+    <button
+      type="button"
+      data-ocid={`timer.customize.color.${index + 1}`}
+      onClick={onClick}
+      title={preset.label}
+      className="relative w-8 h-8 rounded-full transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      style={{
+        background: colorVal,
+        boxShadow: active
+          ? `0 0 0 2px oklch(var(--card)), 0 0 0 4px ${colorVal}`
+          : "none",
+        transform: active ? "scale(1.15)" : "scale(1)",
+      }}
+      aria-label={`${preset.label} colour accent${active ? " (active)" : ""}`}
+      aria-pressed={active}
+    >
+      {active && (
+        <span className="absolute inset-0 flex items-center justify-center">
+          <span className="w-2.5 h-2.5 rounded-full bg-white/70" />
+        </span>
+      )}
+    </button>
+  );
+}
+
+// ── Main component ────────────────────────────────────────────────────────────
 export function TimerPage() {
+  const [settings, setSettings] = useState<TimerSettings>(loadSettings);
+  const [customizeOpen, setCustomizeOpen] = useState(false);
+  const [notifPermission, setNotifPermission] = useState<
+    NotificationPermission | "unsupported"
+  >(() => {
+    if (!("Notification" in window)) return "unsupported";
+    return Notification.permission;
+  });
+
   const [mode, setMode] = useState<TimerMode>("pomodoro");
   const [phase, setPhase] = useState<PomodoroPhase>("work");
-  const [cycleCount, _setCycleCount] = useState(0);
-  const [timeLeft, setTimeLeft] = useState(POMODORO_DURATIONS.work);
+  const [cycleCount, setCycleCount] = useState(0);
+  const [timeLeft, setTimeLeft] = useState(settings.focusMins * 60);
   const [elapsed, setElapsed] = useState(0);
   const [running, setRunning] = useState(false);
   const [selectedLevel, setSelectedLevel] = useState<CA_Level>(
@@ -72,6 +177,9 @@ export function TimerPage() {
   const [selectedSubject, setSelectedSubject] = useState<string>("");
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
+  // Pending settings while timer is running (applied on next reset)
+  const pendingSettingsRef = useRef<TimerSettings | null>(null);
+
   const { data: sessions = [], isLoading: sessionsLoading } =
     useTimerSessions();
   const addTimer = useAddTimerSession();
@@ -79,7 +187,14 @@ export function TimerPage() {
 
   const subjects = CA_SUBJECTS.filter((s) => s.level === selectedLevel);
 
-  const totalDuration = mode === "pomodoro" ? POMODORO_DURATIONS[phase] : 0;
+  // Compute phase durations from settings
+  const phaseDurations: Record<PomodoroPhase, number> = {
+    work: settings.focusMins * 60,
+    shortBreak: settings.shortBreakMins * 60,
+    longBreak: settings.longBreakMins * 60,
+  };
+
+  const totalDuration = mode === "pomodoro" ? phaseDurations[phase] : 0;
   const progress =
     mode === "pomodoro" && totalDuration > 0
       ? ((totalDuration - timeLeft) / totalDuration) * 100
@@ -92,6 +207,19 @@ export function TimerPage() {
     }
   }, []);
 
+  // Colour accent
+  const currentColorRaw = getColorString(settings.colorAccent);
+  const currentColorCss =
+    currentColorRaw.startsWith("var(") || currentColorRaw.startsWith("oklch(")
+      ? currentColorRaw
+      : `oklch(${currentColorRaw})`;
+  // Glow colour: strip oklch() wrapper if present, then re-wrap with alpha
+  const innerColorVal = currentColorRaw.startsWith("var(")
+    ? "var(--primary)"
+    : currentColorRaw;
+  const glowCss = `oklch(${innerColorVal} / 0.4)`;
+
+  // ── Timer tick + session-complete logic ──────────────────────────────────
   useEffect(() => {
     if (running) {
       intervalRef.current = setInterval(() => {
@@ -100,7 +228,55 @@ export function TimerPage() {
             if (prev <= 1) {
               clearInterval_();
               setRunning(false);
-              toast.success(`${PHASE_LABELS[phase]} complete! 🎉`);
+
+              // Notification
+              if (settings.soundEnabled) {
+                const label =
+                  phase === "work"
+                    ? "Focus Time"
+                    : phase === "shortBreak"
+                      ? "Short Break"
+                      : "Long Break";
+                sendNotification("CA Study Hub", `${label} complete! 🎉`);
+              }
+
+              toast.success(
+                `${phase === "work" ? "Focus" : phase === "shortBreak" ? "Short Break" : "Long Break"} complete! 🎉`,
+              );
+
+              // Increment cycle count + auto-transition
+              if (phase === "work") {
+                setCycleCount((prev) => {
+                  const next = prev + 1;
+                  if (settings.autoStart) {
+                    const nextPhase =
+                      next % settings.longBreakAfter === 0
+                        ? "longBreak"
+                        : "shortBreak";
+                    // Schedule phase switch after state settles
+                    setTimeout(() => {
+                      setPhase(nextPhase);
+                      setTimeLeft(
+                        nextPhase === "longBreak"
+                          ? settings.longBreakMins * 60
+                          : settings.shortBreakMins * 60,
+                      );
+                      setRunning(true);
+                    }, 500);
+                  }
+                  return next;
+                });
+              } else {
+                // Break finished → back to work
+                if (settings.autoStart) {
+                  setTimeout(() => {
+                    setPhase("work");
+                    setTimeLeft(settings.focusMins * 60);
+                    setRunning(true);
+                  }, 500);
+                }
+              }
+
               return 0;
             }
             return prev - 1;
@@ -113,15 +289,22 @@ export function TimerPage() {
       clearInterval_();
     }
     return clearInterval_;
-  }, [running, mode, phase, clearInterval_]);
+  }, [running, mode, phase, settings, clearInterval_]);
 
   const handleStart = () => setRunning(true);
   const handlePause = () => setRunning(false);
 
   const handleReset = () => {
     setRunning(false);
-    if (mode === "pomodoro") {
-      setTimeLeft(POMODORO_DURATIONS[phase]);
+    // Apply any pending settings change
+    if (pendingSettingsRef.current) {
+      const s = pendingSettingsRef.current;
+      pendingSettingsRef.current = null;
+      setSettings(s);
+      saveSettings(s);
+      setTimeLeft(s.focusMins * 60);
+    } else if (mode === "pomodoro") {
+      setTimeLeft(phaseDurations[phase]);
     } else {
       setElapsed(0);
     }
@@ -171,7 +354,7 @@ export function TimerPage() {
       );
       setRunning(false);
       if (mode === "pomodoro") {
-        setTimeLeft(POMODORO_DURATIONS[phase]);
+        setTimeLeft(phaseDurations[phase]);
       } else {
         setElapsed(0);
       }
@@ -182,24 +365,53 @@ export function TimerPage() {
 
   const switchPhase = (newPhase: PomodoroPhase) => {
     setPhase(newPhase);
-    setTimeLeft(POMODORO_DURATIONS[newPhase]);
+    setTimeLeft(phaseDurations[newPhase]);
     setRunning(false);
   };
 
   const switchMode = (newMode: TimerMode) => {
     setMode(newMode);
     setRunning(false);
-    setTimeLeft(POMODORO_DURATIONS.work);
+    setTimeLeft(phaseDurations.work);
     setElapsed(0);
     setPhase("work");
   };
 
-  // SVG circle
+  // ── Settings updater ────────────────────────────────────────────────────
+  const updateSettings = (patch: Partial<TimerSettings>) => {
+    setSettings((prev) => {
+      const next = { ...prev, ...patch };
+      if (running) {
+        // Queue for next reset
+        pendingSettingsRef.current = next;
+      } else {
+        saveSettings(next);
+        // Update timeLeft if duration changed and timer not running
+        if (patch.focusMins !== undefined && phase === "work") {
+          setTimeLeft(patch.focusMins * 60);
+        }
+        if (patch.shortBreakMins !== undefined && phase === "shortBreak") {
+          setTimeLeft(patch.shortBreakMins * 60);
+        }
+        if (patch.longBreakMins !== undefined && phase === "longBreak") {
+          setTimeLeft(patch.longBreakMins * 60);
+        }
+      }
+      return next;
+    });
+  };
+
+  // ── Notification permission ─────────────────────────────────────────────
+  const requestNotifPermission = async () => {
+    if (!("Notification" in window)) return;
+    const result = await Notification.requestPermission();
+    setNotifPermission(result);
+  };
+
+  // ── SVG circle ──────────────────────────────────────────────────────────
   const radius = 110;
   const circumference = 2 * Math.PI * radius;
   const strokeDashoffset = circumference * (1 - progress / 100);
-  const currentColor =
-    mode === "pomodoro" ? PHASE_COLORS[phase] : "var(--primary)";
 
   return (
     <div className="p-4 md:p-6 max-w-4xl mx-auto">
@@ -266,6 +478,345 @@ export function TimerPage() {
           </button>
         </div>
 
+        {/* ── Customize Panel ─────────────────────────────────────────────── */}
+        <Collapsible open={customizeOpen} onOpenChange={setCustomizeOpen}>
+          <CollapsibleTrigger asChild>
+            <button
+              type="button"
+              data-ocid="timer.customize.toggle"
+              className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-heading font-medium transition-all w-fit"
+              style={{
+                background: customizeOpen
+                  ? "oklch(var(--card))"
+                  : "oklch(var(--muted) / 0.5)",
+                border: "1px solid oklch(var(--border))",
+                color: customizeOpen
+                  ? currentColorCss
+                  : "oklch(var(--muted-foreground))",
+              }}
+            >
+              <Settings2 className="w-4 h-4" />
+              Customize Timer
+              <ChevronDown
+                className="w-4 h-4 transition-transform duration-200"
+                style={{
+                  transform: customizeOpen ? "rotate(180deg)" : "rotate(0deg)",
+                }}
+              />
+            </button>
+          </CollapsibleTrigger>
+
+          <CollapsibleContent data-ocid="timer.customize.panel">
+            <motion.div
+              initial={{ opacity: 0, y: -4 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.2 }}
+              className="mt-3 rounded-2xl p-5 space-y-5"
+              style={{
+                background: "oklch(var(--card))",
+                border: "1px solid oklch(var(--border))",
+              }}
+            >
+              {/* ── Duration sliders ───────────────────────────────── */}
+              <div>
+                <h4 className="text-sm font-heading font-semibold text-foreground mb-4 flex items-center gap-2">
+                  <Timer
+                    className="w-4 h-4"
+                    style={{ color: currentColorCss }}
+                  />
+                  Pomodoro Durations
+                </h4>
+                <div className="space-y-5">
+                  {/* Focus Duration */}
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <Label className="text-xs font-heading text-muted-foreground">
+                        Focus Duration
+                      </Label>
+                      <span
+                        className="text-sm font-heading font-semibold tabular-nums"
+                        style={{ color: currentColorCss }}
+                      >
+                        {settings.focusMins} min
+                      </span>
+                    </div>
+                    <Slider
+                      data-ocid="timer.customize.focus_input"
+                      min={1}
+                      max={60}
+                      step={1}
+                      value={[settings.focusMins]}
+                      onValueChange={([v]) => updateSettings({ focusMins: v })}
+                      className="w-full"
+                    />
+                    <div className="flex justify-between text-xs text-muted-foreground font-heading">
+                      <span>1 min</span>
+                      <span>60 min</span>
+                    </div>
+                  </div>
+
+                  {/* Short Break */}
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <Label className="text-xs font-heading text-muted-foreground">
+                        Short Break
+                      </Label>
+                      <span
+                        className="text-sm font-heading font-semibold tabular-nums"
+                        style={{ color: currentColorCss }}
+                      >
+                        {settings.shortBreakMins} min
+                      </span>
+                    </div>
+                    <Slider
+                      data-ocid="timer.customize.short_break_input"
+                      min={1}
+                      max={30}
+                      step={1}
+                      value={[settings.shortBreakMins]}
+                      onValueChange={([v]) =>
+                        updateSettings({ shortBreakMins: v })
+                      }
+                      className="w-full"
+                    />
+                    <div className="flex justify-between text-xs text-muted-foreground font-heading">
+                      <span>1 min</span>
+                      <span>30 min</span>
+                    </div>
+                  </div>
+
+                  {/* Long Break */}
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <Label className="text-xs font-heading text-muted-foreground">
+                        Long Break
+                      </Label>
+                      <span
+                        className="text-sm font-heading font-semibold tabular-nums"
+                        style={{ color: currentColorCss }}
+                      >
+                        {settings.longBreakMins} min
+                      </span>
+                    </div>
+                    <Slider
+                      data-ocid="timer.customize.long_break_input"
+                      min={1}
+                      max={30}
+                      step={1}
+                      value={[settings.longBreakMins]}
+                      onValueChange={([v]) =>
+                        updateSettings({ longBreakMins: v })
+                      }
+                      className="w-full"
+                    />
+                    <div className="flex justify-between text-xs text-muted-foreground font-heading">
+                      <span>1 min</span>
+                      <span>30 min</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Divider */}
+              <div
+                className="h-px w-full"
+                style={{ background: "oklch(var(--border))" }}
+              />
+
+              {/* ── Cycle & auto-start ─────────────────────────────── */}
+              <div className="space-y-4">
+                {/* Long break after N cycles */}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-xs font-heading text-muted-foreground">
+                      Long Break After
+                    </Label>
+                    <span
+                      className="text-sm font-heading font-semibold tabular-nums"
+                      style={{ color: currentColorCss }}
+                    >
+                      {settings.longBreakAfter}{" "}
+                      {settings.longBreakAfter === 1 ? "cycle" : "cycles"}
+                    </span>
+                  </div>
+                  <Slider
+                    data-ocid="timer.customize.cycles_input"
+                    min={1}
+                    max={8}
+                    step={1}
+                    value={[settings.longBreakAfter]}
+                    onValueChange={([v]) =>
+                      updateSettings({ longBreakAfter: v })
+                    }
+                    className="w-full"
+                  />
+                  <div className="flex justify-between text-xs text-muted-foreground font-heading">
+                    <span>1 cycle</span>
+                    <span>8 cycles</span>
+                  </div>
+                </div>
+
+                {/* Auto-start toggle */}
+                <div className="flex items-center justify-between py-1">
+                  <div>
+                    <p className="text-sm font-heading font-medium text-foreground">
+                      Auto-start next session
+                    </p>
+                    <p className="text-xs text-muted-foreground font-heading">
+                      Automatically begin the break when focus ends
+                    </p>
+                  </div>
+                  <Switch
+                    data-ocid="timer.customize.autostart.switch"
+                    checked={settings.autoStart}
+                    onCheckedChange={(v) => updateSettings({ autoStart: v })}
+                  />
+                </div>
+              </div>
+
+              {/* Divider */}
+              <div
+                className="h-px w-full"
+                style={{ background: "oklch(var(--border))" }}
+              />
+
+              {/* ── Sound / Notification ──────────────────────────── */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between py-1">
+                  <div>
+                    <p className="text-sm font-heading font-medium text-foreground">
+                      Session notifications
+                    </p>
+                    <p className="text-xs text-muted-foreground font-heading">
+                      Browser alert when a session ends
+                    </p>
+                  </div>
+                  <Switch
+                    data-ocid="timer.customize.sound.switch"
+                    checked={settings.soundEnabled}
+                    onCheckedChange={(v) => {
+                      updateSettings({ soundEnabled: v });
+                      if (v && notifPermission === "default") {
+                        requestNotifPermission();
+                      }
+                    }}
+                  />
+                </div>
+
+                {/* Permission warnings */}
+                <AnimatePresence>
+                  {settings.soundEnabled && notifPermission === "denied" && (
+                    <motion.div
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: "auto" }}
+                      exit={{ opacity: 0, height: 0 }}
+                      className="rounded-lg px-3 py-2 text-xs font-heading"
+                      style={{
+                        background: "oklch(var(--destructive) / 0.1)",
+                        border: "1px solid oklch(var(--destructive) / 0.3)",
+                        color: "oklch(var(--destructive))",
+                      }}
+                    >
+                      ⚠️ Notifications are blocked. Enable them in your browser
+                      settings to receive session alerts.
+                    </motion.div>
+                  )}
+                  {settings.soundEnabled && notifPermission === "default" && (
+                    <motion.div
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: "auto" }}
+                      exit={{ opacity: 0, height: 0 }}
+                      className="rounded-lg px-3 py-2 text-xs font-heading"
+                      style={{
+                        background: "oklch(var(--primary) / 0.08)",
+                        border: "1px solid oklch(var(--primary) / 0.25)",
+                        color: "oklch(var(--foreground))",
+                      }}
+                    >
+                      <button
+                        type="button"
+                        onClick={requestNotifPermission}
+                        className="underline underline-offset-2 hover:opacity-80 transition-opacity"
+                        style={{ color: currentColorCss }}
+                      >
+                        Click to allow notifications
+                      </button>{" "}
+                      so you can be alerted when sessions end.
+                    </motion.div>
+                  )}
+                  {settings.soundEnabled &&
+                    notifPermission === "unsupported" && (
+                      <motion.div
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: "auto" }}
+                        exit={{ opacity: 0, height: 0 }}
+                        className="rounded-lg px-3 py-2 text-xs font-heading text-muted-foreground"
+                        style={{
+                          background: "oklch(var(--muted) / 0.5)",
+                          border: "1px solid oklch(var(--border))",
+                        }}
+                      >
+                        Your browser doesn't support notifications.
+                      </motion.div>
+                    )}
+                </AnimatePresence>
+              </div>
+
+              {/* Divider */}
+              <div
+                className="h-px w-full"
+                style={{ background: "oklch(var(--border))" }}
+              />
+
+              {/* ── Color accent ──────────────────────────────────── */}
+              <div>
+                <p className="text-sm font-heading font-medium text-foreground mb-3">
+                  Timer Ring Colour
+                </p>
+                <div className="flex items-center gap-3 flex-wrap">
+                  {COLOR_PRESETS.map((preset, i) => (
+                    <div
+                      key={preset.id}
+                      className="flex flex-col items-center gap-1.5"
+                    >
+                      <ColorChip
+                        preset={preset}
+                        active={settings.colorAccent === preset.id}
+                        index={i}
+                        onClick={() =>
+                          updateSettings({ colorAccent: preset.id })
+                        }
+                      />
+                      <span className="text-xs text-muted-foreground font-heading">
+                        {preset.label}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Running-state notice */}
+              <AnimatePresence>
+                {running && pendingSettingsRef.current && (
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    className="rounded-lg px-3 py-2 text-xs font-heading"
+                    style={{
+                      background: "oklch(var(--primary) / 0.08)",
+                      border: "1px solid oklch(var(--primary) / 0.25)",
+                      color: "oklch(var(--muted-foreground))",
+                    }}
+                  >
+                    Duration changes will apply after you reset the timer.
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </motion.div>
+          </CollapsibleContent>
+        </Collapsible>
+
         <div className="grid md:grid-cols-2 gap-6">
           {/* Timer Display */}
           <div
@@ -294,13 +845,22 @@ export function TimerPage() {
                         style={{
                           background:
                             phase === p
-                              ? `oklch(${PHASE_COLORS[p]} / 0.15)`
+                              ? p === "work"
+                                ? "oklch(var(--primary) / 0.15)"
+                                : "oklch(var(--muted) / 0.8)"
                               : "transparent",
                           color:
                             phase === p
-                              ? `oklch(${PHASE_COLORS[p]})`
+                              ? p === "work"
+                                ? currentColorCss
+                                : "oklch(var(--foreground))"
                               : "oklch(var(--muted-foreground))",
-                          border: `1px solid ${phase === p ? `oklch(${PHASE_COLORS[p]} / 0.3)` : "transparent"}`,
+                          border:
+                            phase === p
+                              ? p === "work"
+                                ? "1px solid oklch(var(--primary) / 0.3)"
+                                : "1px solid oklch(var(--border))"
+                              : "1px solid transparent",
                         }}
                       >
                         {p === "work"
@@ -340,7 +900,7 @@ export function TimerPage() {
                     cy="130"
                     r={radius}
                     fill="none"
-                    stroke={`oklch(${currentColor})`}
+                    stroke={currentColorCss}
                     strokeWidth="8"
                     strokeLinecap="round"
                     strokeDasharray={circumference}
@@ -356,7 +916,7 @@ export function TimerPage() {
                     cy="130"
                     r={radius}
                     fill="none"
-                    stroke={`oklch(${currentColor} / 0.3)`}
+                    stroke="oklch(var(--primary) / 0.3)"
                     strokeWidth="12"
                     className="animate-timer-pulse"
                   />
@@ -365,7 +925,7 @@ export function TimerPage() {
               <div className="absolute inset-0 flex flex-col items-center justify-center">
                 <span
                   className="font-display text-5xl font-bold tabular-nums"
-                  style={{ color: `oklch(${currentColor})` }}
+                  style={{ color: currentColorCss }}
                 >
                   {mode === "pomodoro"
                     ? formatTime(timeLeft)
@@ -373,7 +933,11 @@ export function TimerPage() {
                 </span>
                 <span className="text-xs text-muted-foreground font-heading mt-1">
                   {mode === "pomodoro"
-                    ? PHASE_LABELS[phase]
+                    ? phase === "work"
+                      ? "Focus Time"
+                      : phase === "shortBreak"
+                        ? "Short Break"
+                        : "Long Break"
                     : running
                       ? "Running..."
                       : "Stopwatch"}
@@ -381,7 +945,7 @@ export function TimerPage() {
                 {mode === "pomodoro" && cycleCount > 0 && (
                   <span
                     className="text-xs font-heading mt-1"
-                    style={{ color: `oklch(${currentColor})` }}
+                    style={{ color: currentColorCss }}
                   >
                     Cycle {cycleCount}
                   </span>
@@ -407,9 +971,9 @@ export function TimerPage() {
                   data-ocid="timer.pause.button"
                   className="w-16 h-16 rounded-full text-lg"
                   style={{
-                    background: `oklch(${currentColor})`,
+                    background: currentColorCss,
                     color: "oklch(var(--primary-foreground))",
-                    boxShadow: `0 4px 20px oklch(${currentColor} / 0.4)`,
+                    boxShadow: `0 4px 20px ${glowCss}`,
                   }}
                 >
                   <Pause className="w-6 h-6" />
@@ -420,9 +984,9 @@ export function TimerPage() {
                   data-ocid="timer.start.button"
                   className="w-16 h-16 rounded-full text-lg"
                   style={{
-                    background: `oklch(${currentColor})`,
+                    background: currentColorCss,
                     color: "oklch(var(--primary-foreground))",
-                    boxShadow: `0 4px 20px oklch(${currentColor} / 0.4)`,
+                    boxShadow: `0 4px 20px ${glowCss}`,
                   }}
                 >
                   <Play className="w-6 h-6 ml-0.5" />
@@ -557,7 +1121,7 @@ export function TimerPage() {
               <h3 className="text-sm font-heading font-semibold text-foreground mb-3 flex items-center gap-2">
                 <ChevronDown
                   className="w-4 h-4"
-                  style={{ color: "oklch(var(--primary))" }}
+                  style={{ color: currentColorCss }}
                 />
                 Session History
               </h3>

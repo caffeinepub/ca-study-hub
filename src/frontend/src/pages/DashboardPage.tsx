@@ -23,7 +23,9 @@ import {
 } from "../hooks/useQueries";
 
 interface DashboardPageProps {
-  onNavigate: (page: "timer" | "timetable" | "progress" | "pdf") => void;
+  onNavigate: (
+    page: "timer" | "schedule" | "progress" | "pdf" | "library",
+  ) => void;
 }
 
 const DAYS = [
@@ -255,7 +257,7 @@ export function DashboardPage({ onNavigate }: DashboardPageProps) {
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={() => onNavigate("timetable")}
+                  onClick={() => onNavigate("schedule")}
                   className="text-xs font-heading h-7"
                   style={{ color: "oklch(var(--primary))" }}
                 >
@@ -282,11 +284,11 @@ export function DashboardPage({ onNavigate }: DashboardPageProps) {
                   <Button
                     variant="link"
                     size="sm"
-                    onClick={() => onNavigate("timetable")}
+                    onClick={() => onNavigate("schedule")}
                     className="text-xs mt-1"
                     style={{ color: "oklch(var(--primary))" }}
                   >
-                    Add a slot
+                    Create schedule
                   </Button>
                 </div>
               ) : (
@@ -450,9 +452,9 @@ export function DashboardPage({ onNavigate }: DashboardPageProps) {
               color: "var(--primary)",
             },
             {
-              label: "View Timetable",
+              label: "Schedule Maker",
               icon: Calendar,
-              page: "timetable" as const,
+              page: "schedule" as const,
               color: "var(--chart-2)",
             },
             {
@@ -462,9 +464,9 @@ export function DashboardPage({ onNavigate }: DashboardPageProps) {
               color: "var(--chart-3)",
             },
             {
-              label: "PDF Library",
+              label: "My Library",
               icon: BookOpen,
-              page: "pdf" as const,
+              page: "library" as const,
               color: "var(--chart-4)",
             },
           ].map((action) => (

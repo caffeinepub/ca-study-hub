@@ -2,22 +2,23 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Toaster } from "@/components/ui/sonner";
 import { useEffect, useState } from "react";
 import { AppLayout } from "./components/AppLayout";
-import { LoginPage } from "./components/LoginPage";
 import { useInternetIdentity } from "./hooks/useInternetIdentity";
 import { useTheme } from "./hooks/useTheme";
 import { DashboardPage } from "./pages/DashboardPage";
 import { ICAIPapersPage } from "./pages/ICAIPapersPage";
+import { LibraryPage } from "./pages/LibraryPage";
 import { ProgressPage } from "./pages/ProgressPage";
+import { ScheduleMakerPage } from "./pages/ScheduleMakerPage";
 import { SettingsPage } from "./pages/SettingsPage";
 import { TimerPage } from "./pages/TimerPage";
-import { TimetablePage } from "./pages/TimetablePage";
 
 type Page =
   | "dashboard"
   | "timer"
-  | "timetable"
+  | "schedule"
   | "progress"
   | "pdf"
+  | "library"
   | "settings";
 
 function LoadingScreen() {
@@ -52,7 +53,7 @@ function LoadingScreen() {
 }
 
 export default function App() {
-  const { identity, isInitializing } = useInternetIdentity();
+  const { isInitializing } = useInternetIdentity();
   const [currentPage, setCurrentPage] = useState<Page>("dashboard");
   useTheme(); // Initialize theme
 
@@ -65,40 +66,28 @@ export default function App() {
     return <LoadingScreen />;
   }
 
-  if (!identity) {
-    return (
-      <>
-        <LoginPage />
-        <Toaster
-          position="top-right"
-          toastOptions={{
-            style: {
-              background: "oklch(var(--card))",
-              border: "1px solid oklch(var(--border))",
-              color: "oklch(var(--foreground))",
-            },
-          }}
-        />
-      </>
-    );
-  }
-
   const renderPage = () => {
     switch (currentPage) {
       case "dashboard":
-        return <DashboardPage onNavigate={(page) => setCurrentPage(page)} />;
+        return (
+          <DashboardPage onNavigate={(page) => setCurrentPage(page as Page)} />
+        );
       case "timer":
         return <TimerPage />;
-      case "timetable":
-        return <TimetablePage />;
+      case "schedule":
+        return <ScheduleMakerPage />;
       case "progress":
         return <ProgressPage />;
       case "pdf":
         return <ICAIPapersPage />;
+      case "library":
+        return <LibraryPage />;
       case "settings":
         return <SettingsPage />;
       default:
-        return <DashboardPage onNavigate={(page) => setCurrentPage(page)} />;
+        return (
+          <DashboardPage onNavigate={(page) => setCurrentPage(page as Page)} />
+        );
     }
   };
 
