@@ -15,6 +15,7 @@ import {
   BookOpen,
   Brain,
   CalendarClock,
+  CalendarDays,
   Check,
   Copy,
   GripVertical,
@@ -35,6 +36,7 @@ import {
   generateSchedule,
   scheduleToText,
 } from "../utils/scheduleGenerator";
+import { DailyScheduleMakerTab } from "./DailyScheduleMakerTab";
 
 // ─── Constants ──────────────────────────────────────────────────────────────
 
@@ -1352,6 +1354,14 @@ export function ScheduleMakerPage() {
               <BookOpen className="w-4 h-4" />
               Manual Planner
             </TabsTrigger>
+            <TabsTrigger
+              value="daily"
+              className="gap-2 text-sm px-5 h-9 font-heading font-medium"
+              data-ocid="schedule.daily_tab.tab"
+            >
+              <CalendarDays className="w-4 h-4" />
+              Daily Planner
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="ai" className="mt-5">
@@ -1378,6 +1388,20 @@ export function ScheduleMakerPage() {
                 transition={{ duration: 0.2 }}
               >
                 <ManualPlannerTab />
+              </motion.div>
+            </AnimatePresence>
+          </TabsContent>
+
+          <TabsContent value="daily" className="mt-5">
+            <AnimatePresence mode="wait">
+              <motion.div
+                key="daily"
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -8 }}
+                transition={{ duration: 0.2 }}
+              >
+                <DailyScheduleMakerTab />
               </motion.div>
             </AnimatePresence>
           </TabsContent>
