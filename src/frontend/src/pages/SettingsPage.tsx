@@ -14,6 +14,7 @@ import {
   Crown,
   GraduationCap,
   Loader2,
+  LogIn,
   Moon,
   Palette,
   Save,
@@ -27,6 +28,8 @@ import { toast } from "sonner";
 import { CA_Level } from "../backend.d";
 import { CATEGORY_LABELS, type QuoteCategory } from "../data/quotes";
 import { LEVEL_LABELS } from "../data/subjects";
+import { useActor } from "../hooks/useActor";
+import { useInternetIdentity } from "../hooks/useInternetIdentity";
 import { useSaveUserProfile, useUserProfile } from "../hooks/useQueries";
 import { type AutoRotateInterval, useQuotes } from "../hooks/useQuotes";
 import {
@@ -36,6 +39,7 @@ import {
   type Theme,
   useTheme,
 } from "../hooks/useTheme";
+import { getSecretParameter } from "../utils/urlParams";
 
 const AUTO_ROTATE_LABELS: Record<AutoRotateInterval, string> = {
   off: "Off",
@@ -57,6 +61,8 @@ const THEME_OCIDS: Record<Theme, string> = {
 };
 
 export function SettingsPage() {
+  const { identity, login } = useInternetIdentity();
+  const { actor } = useActor();
   const { data: profile } = useUserProfile();
   const saveProfile = useSaveUserProfile();
   const { theme, setTheme, colorMode, toggleColorMode } = useTheme();
@@ -81,16 +87,28 @@ export function SettingsPage() {
   }, [profile?.name]);
 
   const handleSaveProfile = async () => {
+    if (!identity) {
+      toast.error("Please sign in to save your profile");
+      return;
+    }
     if (!name.trim()) {
       toast.error("Please enter your name");
       return;
     }
+    if (!actor) {
+      toast.error("Not connected. Please refresh and try again.");
+      return;
+    }
     try {
+      // Re-ensure the user is registered in access control before saving
+      const adminToken = getSecretParameter("caffeineAdminToken") || "";
+      await actor._initializeAccessControlWithSecret(adminToken);
       await saveProfile.mutateAsync({ name: name.trim() });
       localStorage.setItem("ca-active-level", activeLevel);
       toast.success("Profile saved!");
-    } catch {
-      toast.error("Failed to save profile");
+    } catch (err) {
+      console.error("Profile save error:", err);
+      toast.error("Failed to save profile. Please try again.");
     }
   };
 
@@ -139,79 +157,103 @@ export function SettingsPage() {
             </h3>
           </div>
 
-          <div className="space-y-4">
-            <div>
-              <Label
-                htmlFor="name"
-                className="text-xs font-heading text-muted-foreground mb-1.5 block"
-              >
-                Your Name
-              </Label>
-              <Input
-                id="name"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="Enter your name..."
-                className="font-heading h-10"
-                data-ocid="settings.profile.input"
-              />
-            </div>
-
-            <div>
-              <Label className="text-xs font-heading text-muted-foreground mb-1.5 block">
-                Active CA Level
-              </Label>
-              <Select
-                value={activeLevel}
-                onValueChange={(v) => handleLevelChange(v as CA_Level)}
-              >
-                <SelectTrigger className="h-10 font-heading text-sm">
-                  <GraduationCap
-                    className="w-4 h-4 mr-2"
-                    style={{ color: "oklch(var(--primary))" }}
-                  />
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {Object.values(CA_Level).map((l) => (
-                    <SelectItem
-                      key={l}
-                      value={l}
-                      className="font-heading text-sm"
-                    >
-                      CA {LEVEL_LABELS[l]}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <p className="text-xs text-muted-foreground font-heading mt-1">
-                Used in dashboard and quick actions
-              </p>
-            </div>
-
-            <Button
-              onClick={handleSaveProfile}
-              disabled={saveProfile.isPending}
-              className="font-heading font-semibold gap-2"
-              style={{
-                background: "oklch(var(--primary))",
-                color: "oklch(var(--primary-foreground))",
-              }}
-              data-ocid="settings.profile.save.button"
+          {!identity ? (
+            <div
+              className="rounded-xl px-5 py-6 flex flex-col items-center gap-3 text-center"
+              style={{ background: "oklch(var(--muted))" }}
+              data-ocid="settings.profile.signin_prompt"
             >
-              {saveProfile.isPending ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  Saving...
-                </>
-              ) : (
-                <>
-                  <Save className="w-4 h-4" />
-                  Save Profile
-                </>
-              )}
-            </Button>
-          </div>
+              <p className="text-sm font-heading text-muted-foreground">
+                Sign in to save and sync your profile across sessions.
+              </p>
+              <Button
+                onClick={() => void login()}
+                className="font-heading font-semibold gap-2"
+                style={{
+                  background: "oklch(var(--primary))",
+                  color: "oklch(var(--primary-foreground))",
+                }}
+                data-ocid="settings.profile.signin.button"
+              >
+                <LogIn className="w-4 h-4" />
+                Sign In
+              </Button>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <div>
+                <Label
+                  htmlFor="name"
+                  className="text-xs font-heading text-muted-foreground mb-1.5 block"
+                >
+                  Your Name
+                </Label>
+                <Input
+                  id="name"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="Enter your name..."
+                  className="font-heading h-10"
+                  data-ocid="settings.profile.input"
+                />
+              </div>
+
+              <div>
+                <Label className="text-xs font-heading text-muted-foreground mb-1.5 block">
+                  Active CA Level
+                </Label>
+                <Select
+                  value={activeLevel}
+                  onValueChange={(v) => handleLevelChange(v as CA_Level)}
+                >
+                  <SelectTrigger className="h-10 font-heading text-sm">
+                    <GraduationCap
+                      className="w-4 h-4 mr-2"
+                      style={{ color: "oklch(var(--primary))" }}
+                    />
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Object.values(CA_Level).map((l) => (
+                      <SelectItem
+                        key={l}
+                        value={l}
+                        className="font-heading text-sm"
+                      >
+                        CA {LEVEL_LABELS[l]}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground font-heading mt-1">
+                  Used in dashboard and quick actions
+                </p>
+              </div>
+
+              <Button
+                onClick={handleSaveProfile}
+                disabled={saveProfile.isPending}
+                className="font-heading font-semibold gap-2"
+                style={{
+                  background: "oklch(var(--primary))",
+                  color: "oklch(var(--primary-foreground))",
+                }}
+                data-ocid="settings.profile.save.button"
+              >
+                {saveProfile.isPending ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  <>
+                    <Save className="w-4 h-4" />
+                    Save Profile
+                  </>
+                )}
+              </Button>
+            </div>
+          )}
         </section>
 
         {/* Theme Section */}
