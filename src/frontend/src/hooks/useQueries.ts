@@ -287,8 +287,29 @@ export function useAddOrUpdatePDFMetadata() {
     mutationFn: async (meta: any) => {
       if (!actor)
         throw new Error("Not connected to backend. Please refresh the page.");
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
-      return actor.addOrUpdatePDFMetadata(meta);
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+        return await actor.addOrUpdatePDFMetadata(meta);
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        if (
+          msg.includes("not registered") ||
+          msg.includes("Unauthorized") ||
+          msg.includes("Only users")
+        ) {
+          // Re-register then retry
+          try {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
+            await (actor as any)._initializeAccessControlWithSecret("");
+          } catch {
+            // ignore re-init errors, may already be registered
+          }
+          await new Promise((resolve) => setTimeout(resolve, 800));
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+          return await actor.addOrUpdatePDFMetadata(meta);
+        }
+        throw err;
+      }
     },
     retry: 2,
     retryDelay: (attempt: number) => attempt * 1500,
@@ -304,8 +325,30 @@ export function useRemovePDFMetadata() {
   return useMutation({
     mutationFn: async (pdfId: string) => {
       if (!actor) throw new Error("Not connected");
-      return actor.removePDFMetadata(pdfId);
+      try {
+        return await actor.removePDFMetadata(pdfId);
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        if (
+          msg.includes("not registered") ||
+          msg.includes("Unauthorized") ||
+          msg.includes("Only users")
+        ) {
+          // Re-register then retry
+          try {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
+            await (actor as any)._initializeAccessControlWithSecret("");
+          } catch {
+            // ignore re-init errors
+          }
+          await new Promise((resolve) => setTimeout(resolve, 800));
+          return await actor.removePDFMetadata(pdfId);
+        }
+        throw err;
+      }
     },
+    retry: 2,
+    retryDelay: (attempt: number) => attempt * 1500,
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["pdfMetadata"] });
     },

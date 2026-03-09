@@ -21,6 +21,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
+  AlertTriangle,
   BookOpen,
   Crown,
   FileText,
@@ -42,6 +43,8 @@ import {
   useRemovePDFMetadata,
 } from "../hooks/useQueries";
 import { nanoid } from "../utils/nanoid";
+
+const PDF_LIMIT = 50;
 
 const LEVEL_LABELS: Record<CA_Level, string> = {
   [CA_Level.foundation]: "CA Foundation",
@@ -102,7 +105,15 @@ function GuestLockScreen({ onSignIn }: { onSignIn: () => void }) {
 
 // ─── Upload Form ───────────────────────────────────────────────────────────────
 
-function UploadForm({ onUploaded }: { onUploaded: () => void }) {
+function UploadForm({
+  onUploaded,
+  totalPDFs,
+  atLimit,
+}: {
+  onUploaded: () => void;
+  totalPDFs: number;
+  atLimit: boolean;
+}) {
   const [file, setFile] = useState<File | null>(null);
   const [name, setName] = useState("");
   const [subject, setSubject] = useState("");
@@ -132,6 +143,14 @@ function UploadForm({ onUploaded }: { onUploaded: () => void }) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (atLimit) {
+      toast.error(
+        `Library limit reached (${PDF_LIMIT} PDFs). Delete some PDFs to upload more.`,
+      );
+      return;
+    }
+
     if (!file || !name.trim() || !subject.trim() || !caLevel) {
       toast.error("Please fill in all fields and select a PDF");
       return;
@@ -162,26 +181,39 @@ function UploadForm({ onUploaded }: { onUploaded: () => void }) {
       setName("");
       setSubject("");
       setCaLevel("");
-      setUploadProgress(null);
       onUploaded();
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-      if (
+      if (msg.includes("Not connected")) {
+        toast.error(
+          "Not connected to backend. Please refresh the page and try again.",
+        );
+      } else if (msg.includes("limit")) {
+        toast.error("Storage limit reached.");
+      } else if (
         msg.includes("Unauthorized") ||
         msg.includes("Only users") ||
         msg.includes("permission")
       ) {
         toast.error("Permission denied. Please sign out and sign in again.");
-      } else if (msg.includes("Not connected")) {
-        toast.error("Not connected. Please refresh and try again.");
       } else {
-        toast.error("Upload failed. Please try again.");
+        toast.error(`Upload failed: ${msg.slice(0, 100)}`);
       }
+    } finally {
       setUploadProgress(null);
     }
   };
 
   const isPending = addMeta.isPending || uploadProgress !== null;
+
+  // Compute capacity state for colour coding
+  const usagePct = Math.min((totalPDFs / PDF_LIMIT) * 100, 100);
+  const isWarning = totalPDFs >= Math.floor(PDF_LIMIT * 0.8); // 40+
+  const counterColor = atLimit
+    ? "oklch(var(--destructive))"
+    : isWarning
+      ? "oklch(0.75 0.18 65)" // amber tone
+      : "oklch(var(--muted-foreground))";
 
   return (
     <Card
@@ -191,23 +223,83 @@ function UploadForm({ onUploaded }: { onUploaded: () => void }) {
       }}
     >
       <CardContent className="pt-5 pb-5">
-        <div className="flex items-center gap-2 mb-4">
+        {/* Header row with counter */}
+        <div className="flex items-center justify-between gap-2 mb-4">
+          <div className="flex items-center gap-2">
+            <div
+              className="w-8 h-8 rounded-lg flex items-center justify-center"
+              style={{
+                background: "oklch(var(--primary) / 0.1)",
+                border: "1px solid oklch(var(--primary) / 0.2)",
+              }}
+            >
+              <Upload
+                className="w-4 h-4"
+                style={{ color: "oklch(var(--primary))" }}
+              />
+            </div>
+            <h3 className="font-heading font-semibold text-foreground text-sm">
+              Upload PDF
+            </h3>
+          </div>
+
+          {/* PDF count pill */}
           <div
-            className="w-8 h-8 rounded-lg flex items-center justify-center"
+            className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-heading font-semibold"
             style={{
-              background: "oklch(var(--primary) / 0.1)",
-              border: "1px solid oklch(var(--primary) / 0.2)",
+              background: atLimit
+                ? "oklch(var(--destructive) / 0.08)"
+                : isWarning
+                  ? "oklch(0.75 0.18 65 / 0.1)"
+                  : "oklch(var(--muted) / 0.6)",
+              border: `1px solid ${atLimit ? "oklch(var(--destructive) / 0.25)" : isWarning ? "oklch(0.75 0.18 65 / 0.3)" : "oklch(var(--border))"}`,
+              color: counterColor,
             }}
           >
-            <Upload
-              className="w-4 h-4"
-              style={{ color: "oklch(var(--primary))" }}
-            />
+            {atLimit && <AlertTriangle className="w-3 h-3" />}
+            {totalPDFs} / {PDF_LIMIT} PDFs
           </div>
-          <h3 className="font-heading font-semibold text-foreground text-sm">
-            Upload PDF
-          </h3>
         </div>
+
+        {/* Capacity progress bar */}
+        <div
+          className="h-1 rounded-full overflow-hidden mb-4"
+          style={{ background: "oklch(var(--muted))" }}
+        >
+          <motion.div
+            className="h-full rounded-full"
+            style={{
+              background: atLimit
+                ? "oklch(var(--destructive))"
+                : isWarning
+                  ? "oklch(0.75 0.18 65)"
+                  : "oklch(var(--primary))",
+            }}
+            initial={{ width: 0 }}
+            animate={{ width: `${usagePct}%` }}
+            transition={{ duration: 0.5, ease: "easeOut" }}
+          />
+        </div>
+
+        {/* At-limit warning banner */}
+        {atLimit && (
+          <motion.div
+            initial={{ opacity: 0, y: -4 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="flex items-start gap-2 rounded-lg px-3 py-2.5 mb-4 text-sm font-heading"
+            style={{
+              background: "oklch(var(--destructive) / 0.08)",
+              border: "1px solid oklch(var(--destructive) / 0.2)",
+              color: "oklch(var(--destructive))",
+            }}
+          >
+            <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+            <span>
+              You've reached the {PDF_LIMIT}-PDF limit. Delete some PDFs below
+              to free up space before uploading new ones.
+            </span>
+          </motion.div>
+        )}
 
         <form onSubmit={(e) => void handleSubmit(e)} className="space-y-4">
           {/* Dropzone */}
@@ -218,25 +310,31 @@ function UploadForm({ onUploaded }: { onUploaded: () => void }) {
             }}
             onDragLeave={() => setIsDragging(false)}
             onDrop={handleDrop}
-            onClick={() => fileInputRef.current?.click()}
-            className="relative cursor-pointer rounded-xl p-6 flex flex-col items-center gap-2 transition-all"
+            onClick={() => !atLimit && fileInputRef.current?.click()}
+            className={`relative rounded-xl p-6 flex flex-col items-center gap-2 transition-all ${
+              atLimit ? "cursor-not-allowed opacity-50" : "cursor-pointer"
+            }`}
             style={{
               border: `2px dashed ${
-                isDragging
-                  ? "oklch(var(--primary))"
-                  : file
-                    ? "oklch(var(--primary) / 0.5)"
-                    : "oklch(var(--border))"
+                atLimit
+                  ? "oklch(var(--border))"
+                  : isDragging
+                    ? "oklch(var(--primary))"
+                    : file
+                      ? "oklch(var(--primary) / 0.5)"
+                      : "oklch(var(--border))"
               }`,
-              background: isDragging
-                ? "oklch(var(--primary) / 0.05)"
-                : file
-                  ? "oklch(var(--primary) / 0.03)"
-                  : "oklch(var(--muted) / 0.3)",
+              background: atLimit
+                ? "oklch(var(--muted) / 0.2)"
+                : isDragging
+                  ? "oklch(var(--primary) / 0.05)"
+                  : file
+                    ? "oklch(var(--primary) / 0.03)"
+                    : "oklch(var(--muted) / 0.3)",
             }}
             data-ocid="library.upload.dropzone"
             onKeyDown={(e) => {
-              if (e.key === "Enter" || e.key === " ") {
+              if (!atLimit && (e.key === "Enter" || e.key === " ")) {
                 fileInputRef.current?.click();
               }
             }}
@@ -246,6 +344,7 @@ function UploadForm({ onUploaded }: { onUploaded: () => void }) {
               type="file"
               accept="application/pdf"
               className="hidden"
+              disabled={atLimit}
               onChange={(e) => handleFileChange(e.target.files?.[0] ?? null)}
             />
             {file ? (
@@ -268,10 +367,12 @@ function UploadForm({ onUploaded }: { onUploaded: () => void }) {
                   style={{ color: "oklch(var(--muted-foreground))" }}
                 />
                 <p className="text-sm font-heading font-medium text-foreground">
-                  Drop PDF here or click to browse
+                  {atLimit
+                    ? "Upload limit reached"
+                    : "Drop PDF here or click to browse"}
                 </p>
                 <p className="text-xs text-muted-foreground font-heading">
-                  PDF files only
+                  {atLimit ? "Delete PDFs to upload more" : "PDF files only"}
                 </p>
               </>
             )}
@@ -321,6 +422,7 @@ function UploadForm({ onUploaded }: { onUploaded: () => void }) {
                 onChange={(e) => setName(e.target.value)}
                 placeholder="e.g. Financial Reporting Notes"
                 className="h-9 text-sm font-heading"
+                disabled={atLimit}
                 data-ocid="library.upload.input"
               />
             </div>
@@ -339,6 +441,7 @@ function UploadForm({ onUploaded }: { onUploaded: () => void }) {
                 onChange={(e) => setSubject(e.target.value)}
                 placeholder="e.g. Financial Reporting"
                 className="h-9 text-sm font-heading"
+                disabled={atLimit}
               />
             </div>
           </div>
@@ -351,6 +454,7 @@ function UploadForm({ onUploaded }: { onUploaded: () => void }) {
             <Select
               value={caLevel}
               onValueChange={(v) => setCaLevel(v as CA_Level)}
+              disabled={atLimit}
             >
               <SelectTrigger
                 className="h-9 text-sm font-heading"
@@ -375,12 +479,21 @@ function UploadForm({ onUploaded }: { onUploaded: () => void }) {
           <Button
             type="submit"
             disabled={
-              isPending || !file || !name.trim() || !subject.trim() || !caLevel
+              atLimit ||
+              isPending ||
+              !file ||
+              !name.trim() ||
+              !subject.trim() ||
+              !caLevel
             }
             className="w-full font-heading font-semibold gap-2"
             style={{
-              background: "oklch(var(--primary))",
-              color: "oklch(var(--primary-foreground))",
+              background: atLimit
+                ? "oklch(var(--muted))"
+                : "oklch(var(--primary))",
+              color: atLimit
+                ? "oklch(var(--muted-foreground))"
+                : "oklch(var(--primary-foreground))",
             }}
             data-ocid="library.upload.submit_button"
           >
@@ -390,6 +503,11 @@ function UploadForm({ onUploaded }: { onUploaded: () => void }) {
                 {uploadProgress !== null && uploadProgress < 100
                   ? `Uploading… ${Math.round(uploadProgress)}%`
                   : "Processing…"}
+              </>
+            ) : atLimit ? (
+              <>
+                <AlertTriangle className="w-4 h-4" />
+                Library Full ({PDF_LIMIT}/{PDF_LIMIT})
               </>
             ) : (
               <>
@@ -786,6 +904,9 @@ export function LibraryPage() {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
 
+  const totalPDFs = pdfs.length;
+  const atLimit = totalPDFs >= PDF_LIMIT;
+
   // Guest state
   if (!identity) {
     return (
@@ -838,13 +959,18 @@ export function LibraryPage() {
               Personal Library
             </h2>
             <p className="text-sm text-muted-foreground font-heading mt-0.5">
-              Upload and organise your personal study PDFs
+              Upload and organise your personal study PDFs · {totalPDFs} /{" "}
+              {PDF_LIMIT} used
             </p>
           </div>
         </div>
 
         {/* Upload Section */}
-        <UploadForm onUploaded={() => {}} />
+        <UploadForm
+          onUploaded={() => {}}
+          totalPDFs={totalPDFs}
+          atLimit={atLimit}
+        />
 
         {/* PDF Grid by Level */}
         <div>
