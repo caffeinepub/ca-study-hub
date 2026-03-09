@@ -15,15 +15,23 @@ import {
   Heart,
   LogIn,
   MessageCircle,
+  Pencil,
   Quote,
   Send,
+  Trash2,
   TrendingUp,
   Users,
+  X,
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useState } from "react";
+import { toast } from "sonner";
 import { QUOTES } from "../data/quotes";
-import { type PostType, useCommunity } from "../hooks/useCommunity";
+import {
+  type CommunityPost,
+  type PostType,
+  useCommunity,
+} from "../hooks/useCommunity";
 import { useInternetIdentity } from "../hooks/useInternetIdentity";
 import { useUserProfile } from "../hooks/useQueries";
 
@@ -63,8 +71,20 @@ export function CommunityPage() {
     toggleLike,
     addComment,
     isLiked,
+    deletePost,
+    editPost,
     formatTimeAgo,
   } = useCommunity(principalStr);
+
+  // Per-post delete confirm state (postId => boolean)
+  const [deletingPostIds, setDeletingPostIds] = useState<Set<string>>(
+    new Set(),
+  );
+
+  // Per-post edit state
+  const [editingPostId, setEditingPostId] = useState<string | null>(null);
+  const [editText, setEditText] = useState("");
+  const [editQuoteId, setEditQuoteId] = useState("");
 
   // Compose state
   const [postType, setPostType] = useState<PostType>("text");
@@ -140,6 +160,58 @@ export function CommunityPage() {
       else next.add(postId);
       return next;
     });
+  };
+
+  const handleDeletePost = (postId: string) => {
+    const success = deletePost(postId);
+    if (success) {
+      setDeletingPostIds((prev) => {
+        const next = new Set(prev);
+        next.delete(postId);
+        return next;
+      });
+      toast.success("Post deleted");
+    }
+  };
+
+  const startEdit = (post: CommunityPost) => {
+    setEditingPostId(post.id);
+    setEditText(post.text);
+    setEditQuoteId(
+      post.quote
+        ? (QUOTES.find((q) => q.text === post.quote!.text)?.id ?? "")
+        : "",
+    );
+    // Close delete confirm if open
+    setDeletingPostIds((prev) => {
+      const next = new Set(prev);
+      next.delete(post.id);
+      return next;
+    });
+  };
+
+  const cancelEdit = () => {
+    setEditingPostId(null);
+    setEditText("");
+    setEditQuoteId("");
+  };
+
+  const saveEdit = (post: CommunityPost) => {
+    let success = false;
+    if (post.type === "text") {
+      if (editText.trim().length < 5) return;
+      success = editPost(post.id, { text: editText });
+    } else {
+      const q = QUOTES.find((q) => q.id === editQuoteId);
+      if (!q) return;
+      success = editPost(post.id, {
+        quote: { text: q.text, author: q.author, source: q.source },
+      });
+    }
+    if (success) {
+      cancelEdit();
+      toast.success("Post updated");
+    }
   };
 
   const canSubmit =
@@ -461,6 +533,8 @@ export function CommunityPage() {
               post.type === "quote" && post.quote
                 ? "var(--chart-1)"
                 : "var(--primary)";
+            const isOwnPost = identity && post.authorPrincipal === principalStr;
+            const isEditing = editingPostId === post.id;
 
             return (
               <motion.div
@@ -501,15 +575,171 @@ export function CommunityPage() {
                         {post.type === "quote" ? "Quote" : "Post"}
                       </Badge>
                     </div>
-                    <p className="text-xs font-heading text-muted-foreground mt-0.5">
+                    <p className="text-xs font-heading text-muted-foreground mt-0.5 flex items-center gap-1.5">
                       {formatTimeAgo(post.timestamp)}
+                      {post.edited && (
+                        <span
+                          className="text-[10px] font-heading italic"
+                          style={{ color: "oklch(var(--muted-foreground))" }}
+                        >
+                          · edited
+                        </span>
+                      )}
                     </p>
+                  </div>
+
+                  {/* Action buttons in post header */}
+                  <div className="flex-shrink-0">
+                    {/* Own post: Edit + Delete buttons */}
+                    {isOwnPost &&
+                      !isEditing &&
+                      (deletingPostIds.has(post.id) ? (
+                        <div className="flex items-center gap-1">
+                          <button
+                            type="button"
+                            data-ocid={`community.post.delete_button.${i + 1}`}
+                            onClick={() => handleDeletePost(post.id)}
+                            className="px-2 py-1 rounded-md text-[10px] font-heading font-semibold transition-all hover:opacity-80"
+                            style={{
+                              background: "oklch(var(--destructive))",
+                              color: "oklch(var(--destructive-foreground))",
+                            }}
+                          >
+                            Yes
+                          </button>
+                          <button
+                            type="button"
+                            data-ocid={`community.post.delete_cancel.${i + 1}`}
+                            onClick={() =>
+                              setDeletingPostIds((prev) => {
+                                const next = new Set(prev);
+                                next.delete(post.id);
+                                return next;
+                              })
+                            }
+                            className="px-2 py-1 rounded-md text-[10px] font-heading font-semibold transition-all"
+                            style={{
+                              background: "oklch(var(--muted))",
+                              color: "oklch(var(--muted-foreground))",
+                            }}
+                          >
+                            No
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-1">
+                          <button
+                            type="button"
+                            data-ocid={`community.post.edit_button.${i + 1}`}
+                            onClick={() => startEdit(post)}
+                            className="p-1.5 rounded-lg transition-all hover:scale-110 opacity-60 hover:opacity-100"
+                            style={{ color: "oklch(var(--primary))" }}
+                            title="Edit post"
+                          >
+                            <Pencil className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            type="button"
+                            data-ocid={`community.post.delete_button.${i + 1}`}
+                            onClick={() =>
+                              setDeletingPostIds((prev) =>
+                                new Set(prev).add(post.id),
+                              )
+                            }
+                            className="p-1.5 rounded-lg transition-all hover:scale-110 opacity-60 hover:opacity-100"
+                            style={{ color: "oklch(var(--destructive))" }}
+                            title="Delete post"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      ))}
+
+                    {/* Edit mode: cancel button in header */}
+                    {isOwnPost && isEditing && (
+                      <button
+                        type="button"
+                        data-ocid={`community.post.edit_cancel.${i + 1}`}
+                        onClick={cancelEdit}
+                        className="p-1.5 rounded-lg transition-all hover:scale-110 opacity-60 hover:opacity-100"
+                        style={{ color: "oklch(var(--muted-foreground))" }}
+                        title="Cancel edit"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    )}
                   </div>
                 </div>
 
-                {/* Post body */}
+                {/* Post body — normal or edit mode */}
                 <div className="px-5 pb-4">
-                  {post.type === "text" ? (
+                  {isEditing ? (
+                    /* Inline edit form */
+                    <div className="space-y-3">
+                      {post.type === "text" ? (
+                        <Textarea
+                          value={editText}
+                          onChange={(e) => setEditText(e.target.value)}
+                          className="font-heading text-sm resize-none min-h-[80px]"
+                          data-ocid={`community.post.edit.textarea.${i + 1}`}
+                          autoFocus
+                        />
+                      ) : (
+                        <Select
+                          value={editQuoteId}
+                          onValueChange={setEditQuoteId}
+                        >
+                          <SelectTrigger
+                            className="h-10 font-heading text-sm"
+                            data-ocid={`community.post.edit.select.${i + 1}`}
+                          >
+                            <SelectValue placeholder="Pick a new quote..." />
+                          </SelectTrigger>
+                          <SelectContent className="max-h-60">
+                            {QUOTES.map((q) => (
+                              <SelectItem
+                                key={q.id}
+                                value={q.id}
+                                className="font-heading text-sm"
+                              >
+                                &ldquo;{q.text.slice(0, 55)}
+                                {q.text.length > 55 ? "…" : ""}&rdquo; —{" "}
+                                {q.author}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      )}
+                      <div className="flex items-center gap-2 justify-end">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={cancelEdit}
+                          className="font-heading text-xs h-8"
+                          data-ocid={`community.post.edit.cancel_button.${i + 1}`}
+                        >
+                          Cancel
+                        </Button>
+                        <Button
+                          size="sm"
+                          onClick={() => saveEdit(post)}
+                          disabled={
+                            post.type === "text"
+                              ? editText.trim().length < 5
+                              : !editQuoteId
+                          }
+                          className="font-heading text-xs h-8 gap-1.5"
+                          style={{
+                            background: "oklch(var(--primary))",
+                            color: "oklch(var(--primary-foreground))",
+                          }}
+                          data-ocid={`community.post.edit.save_button.${i + 1}`}
+                        >
+                          Save
+                        </Button>
+                      </div>
+                    </div>
+                  ) : post.type === "text" ? (
                     <p className="text-sm font-heading text-foreground leading-relaxed">
                       {post.text}
                     </p>

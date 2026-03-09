@@ -998,7 +998,7 @@ export function TimerPage() {
                 size="icon"
                 onClick={handleSave}
                 disabled={addTimer.isPending || logStudy.isPending}
-                data-ocid="timer.save.button"
+                data-ocid="timer.save_icon.button"
                 className="w-11 h-11 rounded-full border-border"
               >
                 {addTimer.isPending ? (

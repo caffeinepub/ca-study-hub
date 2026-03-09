@@ -17,6 +17,7 @@ export interface CommunityPost {
   id: string;
   authorName: string;
   authorInitials: string;
+  authorPrincipal?: string; // principal string of the post author
   type: PostType;
   text: string;
   quote?: {
@@ -28,6 +29,7 @@ export interface CommunityPost {
   likes: number;
   likedBy: string[]; // principal strings
   comments: CommunityComment[];
+  edited?: boolean;
 }
 
 const STORAGE_KEY = "ca_community_posts";
@@ -175,6 +177,7 @@ export function useCommunity(principalStr?: string) {
         id: `post-${Date.now()}-${Math.random().toString(36).slice(2)}`,
         authorName,
         authorInitials: initials,
+        authorPrincipal: principalStr,
         type: params.type,
         text: params.type === "text" ? params.text.trim() : "",
         quote: params.quote
@@ -193,7 +196,7 @@ export function useCommunity(principalStr?: string) {
       setPosts((prev) => [newPost, ...prev]);
       return { success: true };
     },
-    [],
+    [principalStr],
   );
 
   const toggleLike = useCallback(
@@ -267,6 +270,47 @@ export function useCommunity(principalStr?: string) {
     [posts, principalStr],
   );
 
+  const deletePost = useCallback(
+    (postId: string): boolean => {
+      const post = posts.find((p) => p.id === postId);
+      if (!post) return false;
+      // Only the author (by principal) can delete their own post
+      if (!principalStr || post.authorPrincipal !== principalStr) return false;
+      setPosts((prev) => prev.filter((p) => p.id !== postId));
+      return true;
+    },
+    [posts, principalStr],
+  );
+
+  const editPost = useCallback(
+    (
+      postId: string,
+      updates: {
+        text?: string;
+        quote?: { text: string; author: string; source?: string };
+      },
+    ): boolean => {
+      const post = posts.find((p) => p.id === postId);
+      if (!post) return false;
+      // Only the author can edit
+      if (!principalStr || post.authorPrincipal !== principalStr) return false;
+      setPosts((prev) =>
+        prev.map((p) =>
+          p.id === postId
+            ? {
+                ...p,
+                text: updates.text !== undefined ? updates.text.trim() : p.text,
+                quote: updates.quote !== undefined ? updates.quote : p.quote,
+                edited: true,
+              }
+            : p,
+        ),
+      );
+      return true;
+    },
+    [posts, principalStr],
+  );
+
   return {
     posts: sortedPosts,
     sortMode,
@@ -275,6 +319,8 @@ export function useCommunity(principalStr?: string) {
     toggleLike,
     addComment,
     isLiked,
+    deletePost,
+    editPost,
     formatTimeAgo,
     totalPosts: posts.length,
   };

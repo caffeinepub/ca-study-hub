@@ -237,46 +237,6 @@
     --burgundy: oklch(0.55 0.10 30);
   }
 
-  /* ===== REALITY THEME ===== */
-  [data-theme="reality"] {
-    --radius: 0.375rem;
-    --background: 0.98 0.004 240;
-    --foreground: 0.15 0.02 240;
-    --card: 1 0 0;
-    --card-foreground: 0.15 0.02 240;
-    --popover: 1 0 0;
-    --popover-foreground: 0.15 0.02 240;
-    --primary: 0.28 0.07 245;
-    --primary-foreground: 0.98 0.004 240;
-    --secondary: 0.93 0.01 240;
-    --secondary-foreground: 0.25 0.04 240;
-    --muted: 0.94 0.008 240;
-    --muted-foreground: 0.52 0.02 240;
-    --accent: 0.50 0.12 245;
-    --accent-foreground: 0.98 0.004 240;
-    --destructive: 0.57 0.245 27.3;
-    --destructive-foreground: 0.98 0 0;
-    --border: 0.87 0.01 240;
-    --input: 0.87 0.01 240;
-    --ring: 0.28 0.07 245;
-    --chart-1: 0.28 0.07 245;
-    --chart-2: 0.50 0.12 245;
-    --chart-3: 0.40 0.08 200;
-    --chart-4: 0.35 0.06 260;
-    --chart-5: 0.45 0.10 230;
-    --sidebar: 0.95 0.008 240;
-    --sidebar-foreground: 0.18 0.02 240;
-    --sidebar-primary: 0.28 0.07 245;
-    --sidebar-primary-foreground: 0.98 0.004 240;
-    --sidebar-accent: 0.91 0.01 240;
-    --sidebar-accent-foreground: 0.25 0.04 240;
-    --sidebar-border: 0.85 0.01 240;
-    --sidebar-ring: 0.28 0.07 245;
-    --gradient-hero: linear-gradient(135deg, oklch(0.94 0.015 240), oklch(0.98 0.005 240));
-    --gold: oklch(0.65 0.12 50);
-    --burgundy: oklch(0.40 0.14 25);
-  }
-
   * {
     @apply border-border;
   }
@@ -491,41 +451,89 @@
   --burgundy: oklch(0.42 0.10 30);
 }
 
-/* Reality Dark */
-[data-theme="reality"][data-mode="dark"] {
-  --background: 0.13 0.015 240;
-  --foreground: 0.93 0.01 240;
-  --card: 0.17 0.02 240;
-  --card-foreground: 0.93 0.01 240;
-  --popover: 0.19 0.02 240;
-  --popover-foreground: 0.93 0.01 240;
-  --primary: 0.58 0.14 245;
-  --primary-foreground: 0.99 0.004 240;
-  --secondary: 0.24 0.03 240;
-  --secondary-foreground: 0.80 0.02 240;
-  --muted: 0.22 0.025 240;
-  --muted-foreground: 0.58 0.025 240;
-  --accent: 0.42 0.12 245;
-  --accent-foreground: 0.95 0.01 240;
-  --border: 0.28 0.025 240;
-  --input: 0.28 0.025 240;
-  --ring: 0.58 0.14 245;
-  --chart-1: 0.58 0.14 245;
-  --chart-2: 0.50 0.12 245;
-  --chart-3: 0.45 0.10 200;
-  --chart-4: 0.40 0.08 260;
-  --chart-5: 0.48 0.12 230;
-  --sidebar: 0.10 0.015 240;
-  --sidebar-foreground: 0.88 0.01 240;
-  --sidebar-primary: 0.58 0.14 245;
-  --sidebar-primary-foreground: 0.99 0.004 240;
-  --sidebar-accent: 0.20 0.025 240;
-  --sidebar-accent-foreground: 0.80 0.02 240;
-  --sidebar-border: 0.24 0.02 240;
-  --sidebar-ring: 0.58 0.14 245;
-  --gradient-hero: linear-gradient(135deg, oklch(0.10 0.02 240), oklch(0.18 0.03 240));
-  --gold: oklch(0.70 0.14 50);
-  --burgundy: oklch(0.45 0.16 25);
+/* ===== EARTHLY ROYAL THEME ===== */
+[data-theme="earthly"] {
+  --radius: 0.75rem;
+  /* deep forest green backgrounds */
+  --background: 0.10 0.04 145;
+  --foreground: 0.93 0.03 80;
+  --card: 0.13 0.045 142;
+  --card-foreground: 0.93 0.03 80;
+  --popover: 0.15 0.045 142;
+  --popover-foreground: 0.93 0.03 80;
+  /* antique gold primary */
+  --primary: 0.70 0.13 72;
+  --primary-foreground: 0.10 0.03 145;
+  --secondary: 0.18 0.05 145;
+  --secondary-foreground: 0.82 0.04 80;
+  --muted: 0.17 0.04 145;
+  --muted-foreground: 0.58 0.04 100;
+  --accent: 0.22 0.06 145;
+  --accent-foreground: 0.90 0.04 80;
+  --destructive: 0.57 0.245 27.3;
+  --destructive-foreground: 0.98 0 0;
+  --border: 0.24 0.05 145;
+  --input: 0.24 0.05 145;
+  --ring: 0.70 0.13 72;
+  --chart-1: 0.70 0.13 72;
+  --chart-2: 0.55 0.12 145;
+  --chart-3: 0.48 0.10 100;
+  --chart-4: 0.60 0.10 60;
+  --chart-5: 0.65 0.08 40;
+  --sidebar: 0.08 0.035 145;
+  --sidebar-foreground: 0.88 0.03 80;
+  --sidebar-primary: 0.70 0.13 72;
+  --sidebar-primary-foreground: 0.10 0.03 145;
+  --sidebar-accent: 0.16 0.04 145;
+  --sidebar-accent-foreground: 0.82 0.04 80;
+  --sidebar-border: 0.20 0.04 145;
+  --sidebar-ring: 0.70 0.13 72;
+  --gradient-hero: linear-gradient(135deg, oklch(0.08 0.04 145), oklch(0.16 0.06 130));
+  --gold: oklch(0.70 0.13 72);
+  --burgundy: oklch(0.30 0.08 145);
+}
+
+/* Earthly Royal Light */
+[data-theme="earthly"][data-mode="light"] {
+  --background: 0.96 0.02 82;
+  --foreground: 0.15 0.06 145;
+  --card: 0.98 0.01 75;
+  --card-foreground: 0.15 0.06 145;
+  --popover: 0.98 0.01 75;
+  --popover-foreground: 0.15 0.06 145;
+  --primary: 0.38 0.12 145;
+  --primary-foreground: 0.97 0.01 75;
+  --secondary: 0.90 0.04 82;
+  --secondary-foreground: 0.22 0.07 145;
+  --muted: 0.91 0.03 82;
+  --muted-foreground: 0.50 0.06 130;
+  --accent: 0.85 0.08 75;
+  --accent-foreground: 0.12 0.06 145;
+  --border: 0.84 0.05 80;
+  --input: 0.84 0.05 80;
+  --ring: 0.38 0.12 145;
+  --chart-1: 0.38 0.12 145;
+  --chart-2: 0.55 0.12 145;
+  --chart-3: 0.60 0.10 100;
+  --chart-4: 0.52 0.10 60;
+  --chart-5: 0.48 0.08 40;
+  --sidebar: 0.92 0.04 80;
+  --sidebar-foreground: 0.18 0.06 145;
+  --sidebar-primary: 0.38 0.12 145;
+  --sidebar-primary-foreground: 0.97 0.01 75;
+  --sidebar-accent: 0.88 0.05 82;
+  --sidebar-accent-foreground: 0.22 0.07 145;
+  --sidebar-border: 0.82 0.05 80;
+  --sidebar-ring: 0.38 0.12 145;
+  --gradient-hero: linear-gradient(135deg, oklch(0.93 0.05 80), oklch(0.88 0.07 90));
+  --gold: oklch(0.55 0.13 65);
+  --burgundy: oklch(0.35 0.10 145);
+}
+
+/* === EARTHLY ROYAL DAMASK PATTERN === */
+[data-theme="earthly"] body {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='80' height='80' viewBox='0 0 80 80'%3E%3Cg fill='none' stroke='%23c9a84c' stroke-width='0.5' opacity='0.08'%3E%3C!-- Center diamond --%3E%3Cpath d='M40 10 L55 25 L40 40 L25 25 Z' /%3E%3Cpath d='M40 40 L55 55 L40 70 L25 55 Z' /%3E%3C!-- Corner ornaments --%3E%3Ccircle cx='0' cy='0' r='4' /%3E%3Ccircle cx='80' cy='0' r='4' /%3E%3Ccircle cx='0' cy='80' r='4' /%3E%3Ccircle cx='80' cy='80' r='4' /%3E%3C!-- Center medallion --%3E%3Ccircle cx='40' cy='40' r='6' /%3E%3Ccircle cx='40' cy='40' r='10' /%3E%3C!-- Connecting lines --%3E%3Cline x1='40' y1='0' x2='40' y2='20' /%3E%3Cline x1='40' y1='60' x2='40' y2='80' /%3E%3Cline x1='0' y1='40' x2='20' y2='40' /%3E%3Cline x1='60' y1='40' x2='80' y2='40' /%3E%3C!-- Floral petal hints --%3E%3Cellipse cx='40' cy='28' rx='3' ry='6' /%3E%3Cellipse cx='40' cy='52' rx='3' ry='6' /%3E%3Cellipse cx='28' cy='40' rx='6' ry='3' /%3E%3Cellipse cx='52' cy='40' rx='6' ry='3' /%3E%3C/g%3E%3C/svg%3E");
+  background-repeat: repeat;
 }
 
 /* === CUSTOM SCROLLBAR === */

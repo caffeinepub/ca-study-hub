@@ -20,10 +20,7 @@ import {
   type PaperCategory,
 } from "../data/icaiPapers";
 
-interface ViewerState {
-  paper: ICAIPaper;
-  embedFailed: boolean;
-}
+// ─── Paper Card ─────────────────────────────────────────────────────────────────
 
 function PaperCard({
   paper,
@@ -73,8 +70,8 @@ function PaperCard({
         </div>
       </div>
 
-      {/* Badge */}
-      <div>
+      {/* Badges */}
+      <div className="flex flex-wrap gap-1.5">
         <Badge
           className="text-xs font-heading"
           style={{
@@ -123,6 +120,8 @@ function PaperCard({
   );
 }
 
+// ─── Level Content ───────────────────────────────────────────────────────────────
+
 function LevelContent({
   level,
   activeCategory,
@@ -130,7 +129,10 @@ function LevelContent({
   level: CALevel;
   activeCategory: PaperCategory | "all";
 }) {
-  const [viewer, setViewer] = useState<ViewerState | null>(null);
+  const [viewer, setViewer] = useState<{
+    paper: ICAIPaper;
+    embedFailed: boolean;
+  } | null>(null);
 
   const papers = ICAI_PAPERS.filter(
     (p) =>
@@ -224,7 +226,7 @@ function LevelContent({
                     className="h-8 text-xs font-heading gap-1.5 hidden sm:flex"
                   >
                     <ExternalLink className="w-3.5 h-3.5" />
-                    Open on ICAI
+                    Open Externally
                   </Button>
                 </a>
                 <Button
@@ -242,7 +244,6 @@ function LevelContent({
             {/* Viewer */}
             <div className="flex-1 overflow-hidden relative">
               {viewer.embedFailed ? (
-                // Fallback when embed is blocked
                 <div className="flex flex-col items-center justify-center h-full gap-5 px-6 text-center">
                   <div
                     className="w-16 h-16 rounded-2xl flex items-center justify-center"
@@ -261,8 +262,8 @@ function LevelContent({
                       This document cannot be previewed here
                     </p>
                     <p className="text-sm text-muted-foreground font-heading mt-1 max-w-sm">
-                      The ICAI website restricts embedding for this file. Open
-                      it directly on the ICAI website to view or download.
+                      The document restricts embedding. Open it directly to view
+                      or download.
                     </p>
                   </div>
                   <a
@@ -279,7 +280,7 @@ function LevelContent({
                       }}
                     >
                       <ExternalLink className="w-4 h-4" />
-                      Open on ICAI Website
+                      Open Document
                     </Button>
                   </a>
                 </div>
@@ -293,9 +294,7 @@ function LevelContent({
                   onError={() =>
                     setViewer((v) => v && { ...v, embedFailed: true })
                   }
-                  // Most ICAI pages block X-Frame-Options; show fallback after 8s
                   onLoad={(e) => {
-                    // Check if iframe loaded a blank/error page
                     try {
                       const doc = (e.target as HTMLIFrameElement)
                         .contentDocument;
@@ -310,7 +309,7 @@ function LevelContent({
               )}
             </div>
 
-            {/* Mobile "Open on ICAI" bar */}
+            {/* Mobile open bar */}
             <div
               className="sm:hidden flex items-center justify-center p-3 border-t flex-shrink-0"
               style={{
@@ -329,7 +328,7 @@ function LevelContent({
                   className="h-8 text-xs font-heading gap-1.5"
                 >
                   <ExternalLink className="w-3.5 h-3.5" />
-                  Open on ICAI Website
+                  Open Externally
                 </Button>
               </a>
             </div>
@@ -339,6 +338,8 @@ function LevelContent({
     </>
   );
 }
+
+// ─── Main Page ───────────────────────────────────────────────────────────────────
 
 export function ICAIPapersPage() {
   const [activeCategory, setActiveCategory] = useState<PaperCategory | "all">(
@@ -372,7 +373,7 @@ export function ICAIPapersPage() {
                 ICAI Study Papers
               </h2>
               <p className="text-sm text-muted-foreground font-heading mt-0.5">
-                Official ICAI study material, question papers, RTPs & MTPs
+                Official ICAI study material, question papers, RTPs &amp; MTPs
               </p>
             </div>
           </div>
@@ -436,7 +437,7 @@ export function ICAIPapersPage() {
 
         {/* Footer note */}
         <p className="text-xs text-muted-foreground font-heading text-center pb-2">
-          All materials sourced from{" "}
+          Static materials sourced from{" "}
           <a
             href="https://icai.org"
             target="_blank"
@@ -446,8 +447,7 @@ export function ICAIPapersPage() {
           >
             icai.org
           </a>
-          . Some documents may open on the ICAI website if embedding is
-          restricted.
+          . Some documents may open externally if embedding is restricted.
         </p>
       </motion.div>
     </div>

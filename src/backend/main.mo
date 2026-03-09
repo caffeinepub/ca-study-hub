@@ -98,8 +98,17 @@ actor {
     name : Text;
   };
 
+  public type UserStats = {
+    totalRegistered : Nat;
+    activeToday : Nat;
+    activeThisWeek : Nat;
+    activeThisMonth : Nat;
+  };
+
   let users = Map.empty<Principal, UserData>();
   let userProfiles = Map.empty<Principal, UserProfile>();
+  // Track last-active timestamp per user (nanoseconds)
+  let userLastActive = Map.empty<Principal, Time.Time>();
 
   func getUserDataInternal(user : Principal) : UserData {
     switch (users.get(user)) {
@@ -137,6 +146,44 @@ actor {
       Runtime.trap("Unauthorized: Only users can save profiles");
     };
     userProfiles.add(caller, profile);
+    // Record activity on profile save
+    userLastActive.add(caller, Time.now());
+  };
+
+  // Record that a user is active — can be called on sign-in/heartbeat
+  public shared ({ caller }) func recordActivity() : async () {
+    if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
+      Runtime.trap("Unauthorized: Only users can record activity");
+    };
+    userLastActive.add(caller, Time.now());
+  };
+
+  // Get app-wide user stats — accessible to anyone (no auth check)
+  public query func getUserStats() : async UserStats {
+    let totalRegistered = userProfiles.size();
+    let now = Time.now();
+    // 1 day in nanoseconds
+    let oneDayNs : Int = 86_400_000_000_000;
+    let oneWeekNs : Int = 7 * oneDayNs;
+    let oneMonthNs : Int = 30 * oneDayNs;
+
+    var activeToday = 0;
+    var activeThisWeek = 0;
+    var activeThisMonth = 0;
+
+    for ((_, lastActive) in userLastActive.entries()) {
+      let diff : Int = now - lastActive;
+      if (diff <= oneDayNs) { activeToday += 1 };
+      if (diff <= oneWeekNs) { activeThisWeek += 1 };
+      if (diff <= oneMonthNs) { activeThisMonth += 1 };
+    };
+
+    {
+      totalRegistered;
+      activeToday;
+      activeThisWeek;
+      activeThisMonth;
+    };
   };
 
   public query ({ caller }) func getTimetable() : async [TimetableSlot] {
@@ -215,6 +262,8 @@ actor {
     };
     let userData = getUserDataInternal(caller);
     userData.studySessions.add(session.sessionId, session);
+    // Record activity on study
+    userLastActive.add(caller, Time.now());
   };
 
   public query ({ caller }) func getTimerSessions() : async [TimerSession] {
@@ -229,6 +278,8 @@ actor {
       Runtime.trap("Unauthorized: Only users can add timer sessions");
     };
     getUserDataInternal(caller).timerSessions.add(session);
+    // Record activity on timer use
+    userLastActive.add(caller, Time.now());
   };
 
   public query ({ caller }) func getPDFMetadata() : async [PDFMetadata] {

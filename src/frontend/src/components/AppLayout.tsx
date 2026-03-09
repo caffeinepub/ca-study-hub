@@ -28,6 +28,7 @@ import { useState } from "react";
 import { useInternetIdentity } from "../hooks/useInternetIdentity";
 import { useUserProfile } from "../hooks/useQueries";
 import { useTheme } from "../hooks/useTheme";
+import { useRecordActivity } from "../hooks/useUserStats";
 
 type Page =
   | "dashboard"
@@ -113,8 +114,24 @@ export function AppLayout({
   const { data: profile } = useUserProfile();
   const { colorMode, toggleColorMode } = useTheme();
 
-  const initials = profile?.name
-    ? profile.name
+  // Record activity for the current user (once per session)
+  // Generate a stable guest key for anonymous visitors
+  const guestKey = (() => {
+    let key = localStorage.getItem("ca_guest_key");
+    if (!key) {
+      key = `guest_${Math.random().toString(36).slice(2)}${Date.now().toString(36)}`;
+      localStorage.setItem("ca_guest_key", key);
+    }
+    return key;
+  })();
+  const userKey = identity ? identity.getPrincipal().toText() : guestKey;
+  useRecordActivity(userKey);
+
+  // Use backend profile name, fall back to locally cached name
+  const displayName =
+    profile?.name || localStorage.getItem("ca-cached-name") || null;
+  const initials = displayName
+    ? displayName
         .split(" ")
         .map((n) => n[0])
         .join("")
@@ -217,7 +234,7 @@ export function AppLayout({
                   className="text-sm font-heading font-medium truncate"
                   style={{ color: "oklch(var(--sidebar-foreground))" }}
                 >
-                  {identity ? profile?.name || "CA Student" : "Guest"}
+                  {identity ? displayName || "CA Student" : "Guest"}
                 </p>
                 <p
                   className="text-xs"
@@ -413,7 +430,7 @@ export function AppLayout({
                   </nav>
 
                   <div
-                    className="p-4 border-t"
+                    className="p-4 border-t space-y-1"
                     style={{ borderColor: "oklch(var(--sidebar-border))" }}
                   >
                     {identity ? (

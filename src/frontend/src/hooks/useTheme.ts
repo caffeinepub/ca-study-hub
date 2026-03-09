@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 
-export type Theme = "royal" | "sunset" | "anime" | "cute" | "lofi" | "reality";
+export type Theme = "royal" | "sunset" | "anime" | "cute" | "lofi" | "earthly";
 export type ColorMode = "dark" | "light";
 
 const THEME_STORAGE_KEY = "ca-study-hub-theme";
@@ -12,7 +12,7 @@ export const THEME_LABELS: Record<Theme, string> = {
   anime: "Anime",
   cute: "Cute",
   lofi: "Lofi",
-  reality: "Reality",
+  earthly: "Earthly Royal",
 };
 
 export const THEME_DESCRIPTIONS: Record<Theme, string> = {
@@ -21,7 +21,7 @@ export const THEME_DESCRIPTIONS: Record<Theme, string> = {
   anime: "Vibrant pink & purple — playful & energetic",
   cute: "Soft pastels & mint — sweet & cheerful",
   lofi: "Muted browns & sage — chill & focused",
-  reality: "Clean navy & slate — professional & crisp",
+  earthly: "Deep forest green & gold — earthy & majestic",
 };
 
 export const THEME_PREVIEW_COLORS: Record<
@@ -33,7 +33,7 @@ export const THEME_PREVIEW_COLORS: Record<
   anime: { bg: "#130d1f", accent: "#e040a0", text: "#f0eaff" },
   cute: { bg: "#fff0f5", accent: "#e8607a", text: "#3d1520" },
   lofi: { bg: "#2a2318", accent: "#a06040", text: "#ede0c8" },
-  reality: { bg: "#f4f5f8", accent: "#2d3f7a", text: "#1a2040" },
+  earthly: { bg: "#0d1f12", accent: "#c9a055", text: "#eee5c8" },
 };
 
 function applyThemeAndMode(theme: Theme, mode: ColorMode) {
@@ -49,6 +49,8 @@ function applyThemeAndMode(theme: Theme, mode: ColorMode) {
 export function useTheme() {
   const [theme, setThemeState] = useState<Theme>(() => {
     const stored = localStorage.getItem(THEME_STORAGE_KEY);
+    // Migrate legacy "reality" theme to "royal"
+    if (stored === "reality") return "royal";
     return (stored as Theme) || "royal";
   });
 
@@ -58,9 +60,7 @@ export function useTheme() {
     // Default: dark for dark themes, light for light themes
     const storedTheme =
       (localStorage.getItem(THEME_STORAGE_KEY) as Theme) || "royal";
-    return storedTheme === "sunset" ||
-      storedTheme === "cute" ||
-      storedTheme === "reality"
+    return storedTheme === "sunset" || storedTheme === "cute"
       ? "light"
       : "dark";
   });
@@ -71,10 +71,11 @@ export function useTheme() {
     localStorage.setItem(MODE_STORAGE_KEY, colorMode);
   }, [theme, colorMode]);
 
-  // Apply on mount
+  // Apply on mount (handle legacy "reality" migration)
   useEffect(() => {
-    const storedTheme =
-      (localStorage.getItem(THEME_STORAGE_KEY) as Theme) || "royal";
+    const raw = localStorage.getItem(THEME_STORAGE_KEY);
+    const storedTheme: Theme =
+      raw === "reality" || !raw ? "royal" : (raw as Theme);
     const storedMode =
       (localStorage.getItem(MODE_STORAGE_KEY) as ColorMode) || "dark";
     applyThemeAndMode(storedTheme, storedMode);

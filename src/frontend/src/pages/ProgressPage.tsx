@@ -113,15 +113,13 @@ function LevelProgress({ level }: { level: CA_Level }) {
     chapterName: string,
     currentCompleted: boolean,
   ) => {
-    // Find existing or create chapterId
+    // Build the stable prefix key for this specific chapter
+    const chapterPrefix = `${subjectName.replace(/\s/g, "_").slice(0, 20)}_${chapterName.replace(/\s/g, "_").slice(0, 30)}`;
+    // Find existing or create chapterId — use startsWith to avoid false positives from substring matches
     const existing = allProgress.find(
-      (p) =>
-        p.subject === subjectName &&
-        p.chapterId.includes(chapterName.replace(/\s/g, "_").slice(0, 30)),
+      (p) => p.subject === subjectName && p.chapterId.startsWith(chapterPrefix),
     );
-    const chapterId =
-      existing?.chapterId ||
-      `${subjectName.replace(/\s/g, "_").slice(0, 20)}_${chapterName.replace(/\s/g, "_").slice(0, 30)}_${nanoid()}`;
+    const chapterId = existing?.chapterId || `${chapterPrefix}_${nanoid()}`;
 
     try {
       await updateChapter.mutateAsync({
@@ -304,7 +302,7 @@ function LevelProgress({ level }: { level: CA_Level }) {
                       // Find if this chapter is completed
                       const chapterKey = `${subject.name.replace(/\s/g, "_").slice(0, 20)}_${chapter.replace(/\s/g, "_").slice(0, 30)}`;
                       const progressEntry = subjectProgress.find((p) =>
-                        p.chapterId.includes(chapterKey),
+                        p.chapterId.startsWith(chapterKey),
                       );
                       const isCompleted = progressEntry?.completed ?? false;
 

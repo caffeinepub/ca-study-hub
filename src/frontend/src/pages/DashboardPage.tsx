@@ -4,9 +4,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   BookOpen,
-  Calendar,
+  CalendarDays,
   Clock,
   Crown,
+  Flame,
   Timer,
   TrendingUp,
   Zap,
@@ -19,7 +20,6 @@ import {
   useChapterProgress,
   useStudySessions,
   useTimerSessions,
-  useTimetable,
   useUserProfile,
 } from "../hooks/useQueries";
 
@@ -36,26 +36,13 @@ interface DashboardPageProps {
   ) => void;
 }
 
-const DAYS = [
-  "Monday",
-  "Tuesday",
-  "Wednesday",
-  "Thursday",
-  "Friday",
-  "Saturday",
-  "Sunday",
-];
-
 export function DashboardPage({ onNavigate }: DashboardPageProps) {
   const { data: profile, isLoading: profileLoading } = useUserProfile();
   const { data: studySessions = [] } = useStudySessions();
   const { data: timerSessions = [] } = useTimerSessions();
-  const { data: timetable = [] } = useTimetable();
   const { data: chapterProgress = [] } = useChapterProgress();
 
-  const today = DAYS[new Date().getDay() === 0 ? 6 : new Date().getDay() - 1];
-
-  // Weekly study hours (last 7 days)
+  // Weekly study hours (all logged sessions)
   const weeklyMinutes = studySessions.reduce((acc, s) => {
     return acc + Number(s.durationMins);
   }, 0);
@@ -64,11 +51,79 @@ export function DashboardPage({ onNavigate }: DashboardPageProps) {
   // Chapters completed
   const completedChapters = chapterProgress.filter((c) => c.completed).length;
 
-  // Today's timetable
-  const todaySlots = timetable
-    .filter((s) => s.dayOfWeek === today)
-    .sort((a, b) => a.time.localeCompare(b.time))
-    .slice(0, 4);
+  // Subjects with at least one chapter progressed
+  const uniqueSubjectsTracked = new Set(chapterProgress.map((p) => p.subject))
+    .size;
+
+  // ---- Study Streak Calculations ----
+  // Timestamps are stored as nanoseconds (BigInt), convert to ms by dividing by 1_000_000
+  const todayStr = new Date().toDateString();
+
+  // Check if studied today
+  const studiedToday = studySessions.some(
+    (s) =>
+      new Date(Number(s.timestamp) / 1_000_000).toDateString() === todayStr,
+  );
+
+  // All unique study days as Date strings
+  const allStudyDays = new Set(
+    studySessions.map((s) =>
+      new Date(Number(s.timestamp) / 1_000_000).toDateString(),
+    ),
+  );
+
+  // Calculate consecutive streak (counting backward from today)
+  const calcConsecutiveStreak = (): number => {
+    let streak = 0;
+    const cursor = new Date();
+    cursor.setHours(0, 0, 0, 0);
+    while (allStudyDays.has(cursor.toDateString())) {
+      streak++;
+      cursor.setDate(cursor.getDate() - 1);
+    }
+    return streak;
+  };
+
+  // Calculate longest streak from all session data
+  const calcLongestStreak = (): number => {
+    if (allStudyDays.size === 0) return 0;
+    const sortedDays = Array.from(allStudyDays)
+      .map((d) => new Date(d).getTime())
+      .sort((a, b) => a - b);
+    let longest = 1;
+    let current = 1;
+    const ONE_DAY = 24 * 60 * 60 * 1000;
+    for (let i = 1; i < sortedDays.length; i++) {
+      if (sortedDays[i] - sortedDays[i - 1] === ONE_DAY) {
+        current++;
+        if (current > longest) longest = current;
+      } else {
+        current = 1;
+      }
+    }
+    return longest;
+  };
+
+  // Week dots: Mon-Sun of the current calendar week
+  const getWeekDots = (): boolean[] => {
+    const now = new Date();
+    const dayOfWeek = now.getDay(); // 0=Sun, 1=Mon, ..., 6=Sat
+    // Monday-based week
+    const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+    const monday = new Date(now);
+    monday.setDate(now.getDate() + mondayOffset);
+    monday.setHours(0, 0, 0, 0);
+    return Array.from({ length: 7 }, (_, i) => {
+      const day = new Date(monday);
+      day.setDate(monday.getDate() + i);
+      return allStudyDays.has(day.toDateString());
+    });
+  };
+
+  const consecutiveStreak = calcConsecutiveStreak();
+  const longestStreak = calcLongestStreak();
+  const weekDots = getWeekDots();
+  const studyDaysThisWeek = weekDots.filter(Boolean).length;
 
   // Recent timer sessions
   const recentSessions = timerSessions.slice(0, 5);
@@ -178,7 +233,7 @@ export function DashboardPage({ onNavigate }: DashboardPageProps) {
       >
         {[
           {
-            label: "Hours This Week",
+            label: "Hours Studied",
             value: weeklyHours,
             sub: "total study time",
             icon: Clock,
@@ -199,10 +254,10 @@ export function DashboardPage({ onNavigate }: DashboardPageProps) {
             color: "var(--chart-3)",
           },
           {
-            label: "Today's Slots",
-            value: todaySlots.length,
-            sub: `scheduled for ${today}`,
-            icon: Calendar,
+            label: "Subjects Tracked",
+            value: uniqueSubjectsTracked,
+            sub: "with chapter progress",
+            icon: Flame,
             color: "var(--chart-4)",
           },
         ].map((stat) => (
@@ -245,9 +300,10 @@ export function DashboardPage({ onNavigate }: DashboardPageProps) {
 
       {/* Two column */}
       <div className="grid md:grid-cols-2 gap-6">
-        {/* Today's Timetable */}
+        {/* Study Streak */}
         <motion.div variants={itemVariants}>
           <Card
+            data-ocid="dashboard.streak.card"
             style={{
               background: "oklch(var(--card))",
               borderColor: "oklch(var(--border))",
@@ -256,94 +312,169 @@ export function DashboardPage({ onNavigate }: DashboardPageProps) {
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
                 <CardTitle className="text-base font-heading flex items-center gap-2">
-                  <Calendar
+                  <Flame
                     className="w-4 h-4"
                     style={{ color: "oklch(var(--primary))" }}
                   />
-                  Today&apos;s Schedule
+                  Study Streak
                 </CardTitle>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => onNavigate("schedule")}
-                  className="text-xs font-heading h-7"
-                  style={{ color: "oklch(var(--primary))" }}
-                >
-                  View All
-                </Button>
+                <div className="flex items-center gap-2">
+                  {/* Studied today indicator */}
+                  <span
+                    className="text-[10px] font-bold font-heading px-2 py-0.5 rounded-full"
+                    style={{
+                      background: studiedToday
+                        ? "oklch(0.75 0.18 145 / 0.15)"
+                        : "oklch(0.75 0.18 75 / 0.12)",
+                      color: studiedToday
+                        ? "oklch(0.55 0.2 145)"
+                        : "oklch(0.6 0.15 75)",
+                      border: studiedToday
+                        ? "1px solid oklch(0.75 0.18 145 / 0.35)"
+                        : "1px solid oklch(0.75 0.18 75 / 0.3)",
+                    }}
+                  >
+                    {studiedToday ? "✓ Today" : "○ Not yet"}
+                  </span>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => onNavigate("progress")}
+                    className="text-xs font-heading h-7"
+                    style={{ color: "oklch(var(--primary))" }}
+                  >
+                    View
+                  </Button>
+                </div>
               </div>
             </CardHeader>
             <CardContent>
-              {todaySlots.length === 0 ? (
+              {allStudyDays.size === 0 ? (
                 <div
                   className="text-center py-6 rounded-lg"
                   style={{
                     background: "oklch(var(--muted) / 0.5)",
                     border: "1px dashed oklch(var(--border))",
                   }}
+                  data-ocid="dashboard.streak.empty_state"
                 >
-                  <Calendar
+                  <Flame
                     className="w-8 h-8 mx-auto mb-2"
                     style={{ color: "oklch(var(--muted-foreground))" }}
                   />
                   <p className="text-sm text-muted-foreground font-heading">
-                    No slots scheduled for today
+                    No study sessions yet
                   </p>
                   <Button
                     variant="link"
                     size="sm"
-                    onClick={() => onNavigate("schedule")}
+                    onClick={() => onNavigate("timer")}
                     className="text-xs mt-1"
                     style={{ color: "oklch(var(--primary))" }}
                   >
-                    Create schedule
+                    Start your first session
                   </Button>
                 </div>
               ) : (
-                <div className="space-y-2">
-                  {todaySlots.map((slot, i) => (
+                <div className="space-y-4">
+                  {/* Main streak numbers */}
+                  <div className="flex items-center gap-3">
                     <div
-                      key={slot.slotId}
-                      className="flex items-center gap-3 p-2.5 rounded-lg"
+                      className="w-16 h-16 rounded-2xl flex flex-col items-center justify-center flex-shrink-0"
                       style={{
-                        background:
-                          i === 0
-                            ? "oklch(var(--primary) / 0.08)"
-                            : "oklch(var(--muted) / 0.4)",
-                        border: `1px solid ${i === 0 ? "oklch(var(--primary) / 0.2)" : "oklch(var(--border))"}`,
+                        background: "oklch(var(--primary) / 0.12)",
+                        border: "1px solid oklch(var(--primary) / 0.25)",
                       }}
                     >
-                      <div
-                        className="text-xs font-heading font-bold px-2 py-1 rounded"
-                        style={{
-                          background: "oklch(var(--primary) / 0.15)",
-                          color: "oklch(var(--primary))",
-                        }}
+                      <span
+                        className="text-3xl font-bold font-display leading-none"
+                        style={{ color: "oklch(var(--primary))" }}
                       >
-                        {slot.time}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-heading font-medium text-foreground truncate">
-                          {slot.subject}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          {LEVEL_LABELS[slot.caLevel]}
-                        </p>
-                      </div>
-                      {i === 0 && (
-                        <Badge
-                          className="text-xs font-heading"
+                        {consecutiveStreak}
+                      </span>
+                      <span
+                        className="text-[9px] font-heading uppercase tracking-wide mt-0.5"
+                        style={{ color: "oklch(var(--primary) / 0.7)" }}
+                      >
+                        days
+                      </span>
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-sm font-heading font-semibold text-foreground">
+                        {consecutiveStreak === 0
+                          ? "Start your streak today!"
+                          : consecutiveStreak === 1
+                            ? "1-day streak — keep going!"
+                            : `${consecutiveStreak}-day streak 🔥`}
+                      </p>
+                      <p className="text-xs text-muted-foreground font-heading mt-0.5">
+                        Consecutive days studied
+                      </p>
+                      {/* Longest streak */}
+                      <div className="flex items-center gap-1.5 mt-2">
+                        <span
+                          className="text-[10px] font-heading px-1.5 py-0.5 rounded"
                           style={{
-                            background: "oklch(var(--primary) / 0.2)",
-                            color: "oklch(var(--primary))",
-                            border: "none",
+                            background: "oklch(var(--muted))",
+                            color: "oklch(var(--muted-foreground))",
                           }}
                         >
-                          Next
-                        </Badge>
-                      )}
+                          Best: {longestStreak} day
+                          {longestStreak !== 1 ? "s" : ""}
+                        </span>
+                        <span
+                          className="text-[10px] font-heading"
+                          style={{ color: "oklch(var(--muted-foreground))" }}
+                        >
+                          · {studyDaysThisWeek}/7 this week
+                        </span>
+                      </div>
                     </div>
-                  ))}
+                  </div>
+                  {/* Week dots — Mon to Sun of current week */}
+                  <div>
+                    <div className="flex gap-1">
+                      {(
+                        [
+                          "Mon",
+                          "Tue",
+                          "Wed",
+                          "Thu",
+                          "Fri",
+                          "Sat",
+                          "Sun",
+                        ] as const
+                      ).map((day, i) => (
+                        <div
+                          key={day}
+                          className="flex-1 flex flex-col items-center gap-1"
+                        >
+                          <div
+                            className="w-full h-2.5 rounded-full transition-all"
+                            style={{
+                              background: weekDots[i]
+                                ? "oklch(var(--primary))"
+                                : "oklch(var(--muted))",
+                              opacity: weekDots[i] ? 1 : 0.4,
+                            }}
+                          />
+                          <span
+                            className="text-[9px] font-heading"
+                            style={{
+                              color: weekDots[i]
+                                ? "oklch(var(--primary))"
+                                : "oklch(var(--muted-foreground))",
+                            }}
+                          >
+                            {day[0]}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                    <p className="text-[10px] font-heading text-muted-foreground mt-1">
+                      This week (Mon → Sun)
+                    </p>
+                  </div>
                 </div>
               )}
             </CardContent>
@@ -461,7 +592,7 @@ export function DashboardPage({ onNavigate }: DashboardPageProps) {
             },
             {
               label: "Schedule Maker",
-              icon: Calendar,
+              icon: CalendarDays,
               page: "schedule" as const,
               color: "var(--chart-2)",
             },

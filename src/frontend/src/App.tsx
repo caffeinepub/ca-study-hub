@@ -14,7 +14,7 @@ import { ScheduleMakerPage } from "./pages/ScheduleMakerPage";
 import { SettingsPage } from "./pages/SettingsPage";
 import { TimerPage } from "./pages/TimerPage";
 
-type Page =
+export type Page =
   | "dashboard"
   | "timer"
   | "schedule"

@@ -1,46 +1,39 @@
 # CA Study Hub
 
 ## Current State
-The app has a Schedule Maker page (`ScheduleMakerPage.tsx`) with two tabs:
-- **AI Generator**: Rule-based weekly study schedule using CA level, exam date, daily hours, weak subjects, preferred study time
-- **Manual Planner**: Form entry + drag-and-drop weekly grid for CA study blocks
-
-The app has Dashboard, Timer, Progress, ICAI Papers, Library, and Settings pages. No timetable. Guest access is allowed; PDF upload/library requires login.
+- Community page exists with full post/edit/delete/like/comment functionality (localStorage-based)
+- Settings page exists with Profile, Theme, Quotes, and About sections
+- Backend has user profiles, study sessions, timer sessions, chapter progress, PDF metadata
+- No user stats tracking exists in backend or frontend
+- Community features are fully built and working
 
 ## Requested Changes (Diff)
 
 ### Add
-- **Daily Schedule Maker** tab inside the existing `ScheduleMakerPage` as a third top-level tab alongside "AI Generator" and "Manual Planner"
-- Within Daily Schedule Maker, two sub-modes selectable by the user:
-  1. **AI Daily Planner**: Rule-based generator that takes inputs (wake/sleep time, study hours, lecture timings, hobbies list, daily tasks, meals/breaks, exercise time, preferred study time, CA level) and produces a full day-by-day 7-day schedule with color-coded blocks by category
-  2. **Manual Daily Planner**: Hour-by-hour day builder where the user can add blocks by category (Study, Lecture, Hobby, Personal Task, Meal/Break, Exercise) with time + duration, displayed as a vertical timeline per day
+- **Backend**: `getUserStats()` query (no auth needed) returning `{ totalRegistered, activeToday, activeThisWeek, activeThisMonth }`
+- **Backend**: `recordActivity()` shared function for signed-in users to record their last-active timestamp
+- **Backend**: `UserStats` type
+- **Frontend**: User Stats section in Settings page, visible to ALL users (including guests), showing total registered users + active counts with Day/Week/Month toggle tabs
+- **Frontend**: Call `recordActivity()` on sign-in so activity is tracked
+- **Frontend**: `useUserStats` hook using `getUserStats` backend query
+- **Community**: Confirm all features (post, edit, delete, like, comment) work correctly for signed-in users; guests can view but must sign in to interact
 
 ### Modify
-- `ScheduleMakerPage.tsx`: Add a third tab "Daily Planner" to the existing tabs (AI Generator, Manual Planner, Daily Planner)
-- Existing tabs remain unchanged
+- **Settings**: Add a new "Community & Users" stats card section after the About section
+- **useQueries.ts**: Add `useUserStats` hook that calls `backend.getUserStats()`
+- **useInternetIdentity.ts / AppLayout**: Call `recordActivity` after successful sign-in
 
 ### Remove
-- Nothing removed
+- Nothing to remove
 
 ## Implementation Plan
-1. Create `DailyScheduleMakerTab` component inside `ScheduleMakerPage.tsx` (or a new file imported into it)
-2. AI Daily Planner sub-tab:
-   - Inputs: wake time, sleep time, CA level, daily study hours, lecture slots (add multiple), hobbies (freetext list), personal tasks (freetext list), exercise duration, meal break durations, preferred study window
-   - Rule-based engine: distributes study blocks in preferred window, slots in lectures at user-specified times, inserts meals/breaks at standard times, spreads hobbies and personal tasks in remaining gaps, generates 7-day plan (Mon–Sun) with slight daily variation
-   - Output: 7-day weekly view, each day as a vertical timeline with color-coded blocks by category:
-     - Study: primary color (burgundy/gold)
-     - Lecture: purple/indigo
-     - Hobby: green
-     - Personal Task: amber/yellow
-     - Meal/Break: orange
-     - Exercise: teal/cyan
-     - Sleep: dark blue/indigo
-   - Copy-to-clipboard action
-3. Manual Daily Planner sub-tab:
-   - Pick a day (Mon–Sun tabs)
-   - Add a block: category (dropdown), label (text input), start time, duration
-   - Display as vertical timeline for the selected day
-   - Delete blocks
-   - Navigate between days to build the full week
-4. Add "Daily Planner" as third tab in the main ScheduleMakerPage tabs
-5. Validate and deploy
+1. Update `backend.d.ts` to include `getUserStats(): Promise<UserStats>` and `recordActivity(): Promise<void>` and `UserStats` interface
+2. Update `backend.ts` to expose `getUserStats` and `recordActivity`
+3. Add `useUserStats` hook in `useQueries.ts` using React Query
+4. Update `AppLayout.tsx` to call `recordActivity` when identity is available
+5. Add User Stats section in `SettingsPage.tsx`:
+   - Stat card with total registered users (always visible, including guests)
+   - Day / Week / Month tab toggle showing active user counts
+   - Uses the `useUserStats` hook
+   - Shows loading skeleton while fetching
+6. Verify `CommunityPage.tsx` has all required features visible and working

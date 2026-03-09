@@ -26,7 +26,7 @@ import {
   X,
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
-import { useCallback, useRef, useState } from "react";
+import React, { useCallback, useRef, useState } from "react";
 import { toast } from "sonner";
 import { CA_Level } from "../backend.d";
 import { CA_SUBJECTS, LEVEL_LABELS } from "../data/subjects";
@@ -1135,10 +1135,9 @@ function DragDropPlanner() {
 
             {/* Hour rows */}
             {GRID_HOURS.map((hour) => (
-              <>
+              <React.Fragment key={`hour-${hour}`}>
                 {/* Time label */}
                 <div
-                  key={`label-${hour}`}
                   className="text-[10px] font-heading text-muted-foreground text-right pr-2 flex items-center justify-end"
                   style={{ minHeight: "44px" }}
                 >
@@ -1199,7 +1198,7 @@ function DragDropPlanner() {
                     </div>
                   );
                 })}
-              </>
+              </React.Fragment>
             ))}
           </div>
         </div>

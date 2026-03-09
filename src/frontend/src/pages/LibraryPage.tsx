@@ -136,6 +136,7 @@ function UploadForm({ onUploaded }: { onUploaded: () => void }) {
       toast.error("Please fill in all fields and select a PDF");
       return;
     }
+    if (uploadProgress !== null || addMeta.isPending) return;
 
     try {
       setUploadProgress(0);
@@ -143,17 +144,18 @@ function UploadForm({ onUploaded }: { onUploaded: () => void }) {
       const buffer = await file.arrayBuffer();
       const bytes = new Uint8Array(buffer);
 
-      const blob = ExternalBlob.fromBytes(bytes).withUploadProgress((pct) =>
-        setUploadProgress(pct),
-      );
+      const rawBlob = ExternalBlob.fromBytes(bytes);
+      const blob = rawBlob.withUploadProgress((pct) => setUploadProgress(pct));
 
-      await addMeta.mutateAsync({
+      const meta: PDFMetadata = {
         pdfId: nanoid(),
         name: name.trim(),
         subject: subject.trim(),
-        caLevel,
+        caLevel: caLevel as CA_Level,
         blobKey: blob,
-      });
+      };
+
+      await addMeta.mutateAsync(meta);
 
       toast.success("PDF uploaded successfully!");
       setFile(null);
@@ -162,13 +164,24 @@ function UploadForm({ onUploaded }: { onUploaded: () => void }) {
       setCaLevel("");
       setUploadProgress(null);
       onUploaded();
-    } catch {
-      toast.error("Upload failed. Please try again.");
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      if (
+        msg.includes("Unauthorized") ||
+        msg.includes("Only users") ||
+        msg.includes("permission")
+      ) {
+        toast.error("Permission denied. Please sign out and sign in again.");
+      } else if (msg.includes("Not connected")) {
+        toast.error("Not connected. Please refresh and try again.");
+      } else {
+        toast.error("Upload failed. Please try again.");
+      }
       setUploadProgress(null);
     }
   };
 
-  const isPending = addMeta.isPending;
+  const isPending = addMeta.isPending || uploadProgress !== null;
 
   return (
     <Card
@@ -374,7 +387,9 @@ function UploadForm({ onUploaded }: { onUploaded: () => void }) {
             {isPending ? (
               <>
                 <Loader2 className="w-4 h-4 animate-spin" />
-                Uploading…
+                {uploadProgress !== null && uploadProgress < 100
+                  ? `Uploading… ${Math.round(uploadProgress)}%`
+                  : "Processing…"}
               </>
             ) : (
               <>

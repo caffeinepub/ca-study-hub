@@ -9,7 +9,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
+  Activity,
   Check,
   Crown,
   GraduationCap,
@@ -28,7 +30,6 @@ import { toast } from "sonner";
 import { CA_Level } from "../backend.d";
 import { CATEGORY_LABELS, type QuoteCategory } from "../data/quotes";
 import { LEVEL_LABELS } from "../data/subjects";
-import { useActor } from "../hooks/useActor";
 import { useInternetIdentity } from "../hooks/useInternetIdentity";
 import { useSaveUserProfile, useUserProfile } from "../hooks/useQueries";
 import { type AutoRotateInterval, useQuotes } from "../hooks/useQuotes";
@@ -39,7 +40,7 @@ import {
   type Theme,
   useTheme,
 } from "../hooks/useTheme";
-import { getSecretParameter } from "../utils/urlParams";
+import { useUserStats } from "../hooks/useUserStats";
 
 const AUTO_ROTATE_LABELS: Record<AutoRotateInterval, string> = {
   off: "Off",
@@ -49,7 +50,7 @@ const AUTO_ROTATE_LABELS: Record<AutoRotateInterval, string> = {
   "300": "Every 5 minutes",
 };
 
-const THEMES: Theme[] = ["royal", "sunset", "anime", "cute", "lofi", "reality"];
+const THEMES: Theme[] = ["royal", "sunset", "anime", "cute", "lofi", "earthly"];
 
 const THEME_OCIDS: Record<Theme, string> = {
   royal: "settings.theme.royal.button",
@@ -57,12 +58,11 @@ const THEME_OCIDS: Record<Theme, string> = {
   anime: "settings.theme.anime.button",
   cute: "settings.theme.cute.button",
   lofi: "settings.theme.lofi.button",
-  reality: "settings.theme.reality.button",
+  earthly: "settings.theme.earthly.button",
 };
 
 export function SettingsPage() {
   const { identity, login } = useInternetIdentity();
-  const { actor } = useActor();
   const { data: profile } = useUserProfile();
   const saveProfile = useSaveUserProfile();
   const { theme, setTheme, colorMode, toggleColorMode } = useTheme();
@@ -73,16 +73,29 @@ export function SettingsPage() {
     setAutoRotate,
   } = useQuotes();
 
-  const [name, setName] = useState(profile?.name || "");
+  const [name, setName] = useState(
+    () => profile?.name || localStorage.getItem("ca-cached-name") || "",
+  );
+  const [statsTab, setStatsTab] = useState<"day" | "week" | "month">("day");
+  const { stats: userStats, isLoading: statsLoading } = useUserStats();
+
   const [activeLevel, setActiveLevel] = useState<CA_Level>(
     (localStorage.getItem("ca-active-level") as CA_Level) ||
       CA_Level.intermediate,
   );
 
-  // Sync name when profile loads from backend
+  // Sync name when profile loads from backend — prefer backend value, fall back to cache
   useEffect(() => {
-    if (profile?.name) {
+    if (profile?.name?.trim()) {
       setName(profile.name);
+      // Keep cache in sync with backend
+      localStorage.setItem("ca-cached-name", profile.name);
+    } else {
+      // No backend profile yet — try the local cache
+      const cached = localStorage.getItem("ca-cached-name");
+      if (cached?.trim()) {
+        setName(cached);
+      }
     }
   }, [profile?.name]);
 
@@ -95,20 +108,28 @@ export function SettingsPage() {
       toast.error("Please enter your name");
       return;
     }
-    if (!actor) {
-      toast.error("Not connected. Please refresh and try again.");
-      return;
-    }
     try {
-      // Re-ensure the user is registered in access control before saving
-      const adminToken = getSecretParameter("caffeineAdminToken") || "";
-      await actor._initializeAccessControlWithSecret(adminToken);
       await saveProfile.mutateAsync({ name: name.trim() });
       localStorage.setItem("ca-active-level", activeLevel);
+      // Cache the name locally so it's available even if the query hasn't refetched yet
+      localStorage.setItem("ca-cached-name", name.trim());
       toast.success("Profile saved!");
     } catch (err) {
-      console.error("Profile save error:", err);
-      toast.error("Failed to save profile. Please try again.");
+      console.error("Profile save failed:", err);
+      const msg = err instanceof Error ? err.message : String(err);
+      if (msg.includes("Not connected")) {
+        toast.error(
+          "Not connected to backend. Please refresh the page and try again.",
+        );
+      } else if (msg.includes("Unauthorized") || msg.includes("Only users")) {
+        toast.error(
+          "Session expired. Please sign out and sign in again, then try saving.",
+        );
+      } else {
+        toast.error(
+          "Failed to save profile. Please try again in a few seconds.",
+        );
+      }
     }
   };
 
@@ -570,6 +591,140 @@ export function SettingsPage() {
             ))}
           </div>
         </section>
+
+        {/* App Activity Section */}
+        <motion.section
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.15 }}
+          className="rounded-2xl p-6"
+          style={{
+            background: "oklch(var(--card))",
+            border: "1px solid oklch(var(--border))",
+          }}
+          data-ocid="settings.stats.section"
+        >
+          <div className="flex items-center gap-2 mb-5">
+            <div
+              className="w-8 h-8 rounded-lg flex items-center justify-center"
+              style={{ background: "oklch(var(--primary) / 0.1)" }}
+            >
+              <Activity
+                className="w-4 h-4"
+                style={{ color: "oklch(var(--primary))" }}
+              />
+            </div>
+            <div>
+              <h3 className="text-base font-heading font-semibold text-foreground">
+                App Activity
+              </h3>
+              <p className="text-xs text-muted-foreground font-heading">
+                Live usage across all CA students
+              </p>
+            </div>
+          </div>
+
+          {/* Total Registered Card */}
+          <div
+            className="rounded-xl p-5 mb-5 text-center"
+            style={{
+              background: "oklch(var(--primary) / 0.08)",
+              border: "1px solid oklch(var(--primary) / 0.2)",
+            }}
+          >
+            {statsLoading ? (
+              <Skeleton className="h-12 w-24 mx-auto mb-2" />
+            ) : (
+              <div
+                className="text-5xl font-display font-bold mb-1 tabular-nums"
+                style={{ color: "oklch(var(--primary))" }}
+              >
+                {userStats?.totalRegistered ?? "--"}
+              </div>
+            )}
+            <p className="text-sm font-heading text-muted-foreground">
+              Total Registered Students
+            </p>
+          </div>
+
+          {/* Day / Week / Month Tabs */}
+          <div
+            className="flex rounded-xl p-1 mb-4"
+            style={{ background: "oklch(var(--muted))" }}
+          >
+            {(["day", "week", "month"] as const).map((tab) => {
+              const labels = {
+                day: "Today",
+                week: "This Week",
+                month: "This Month",
+              };
+              const ocids = {
+                day: "settings.stats.day.tab",
+                week: "settings.stats.week.tab",
+                month: "settings.stats.month.tab",
+              } as const;
+              const isActive = statsTab === tab;
+              return (
+                <button
+                  key={tab}
+                  type="button"
+                  onClick={() => setStatsTab(tab)}
+                  data-ocid={ocids[tab]}
+                  className="flex-1 py-2 rounded-lg text-xs font-heading font-semibold transition-all"
+                  style={{
+                    background: isActive ? "oklch(var(--card))" : "transparent",
+                    color: isActive
+                      ? "oklch(var(--primary))"
+                      : "oklch(var(--muted-foreground))",
+                    boxShadow: isActive
+                      ? "0 1px 4px oklch(var(--border))"
+                      : "none",
+                  }}
+                >
+                  {labels[tab]}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Active Users Count */}
+          <div className="grid grid-cols-1 gap-3">
+            <div
+              className="rounded-xl p-4 flex items-center justify-between"
+              style={{
+                background: "oklch(var(--muted) / 0.5)",
+                border: "1px solid oklch(var(--border))",
+              }}
+            >
+              <div>
+                <p className="text-xs font-heading text-muted-foreground mb-0.5">
+                  {statsTab === "day"
+                    ? "Active Today"
+                    : statsTab === "week"
+                      ? "Active This Week"
+                      : "Active This Month"}
+                </p>
+                <p className="text-sm font-heading text-muted-foreground">
+                  Students who studied recently
+                </p>
+              </div>
+              {statsLoading ? (
+                <Skeleton className="h-10 w-16" />
+              ) : (
+                <div
+                  className="text-3xl font-display font-bold tabular-nums"
+                  style={{ color: "oklch(var(--primary))" }}
+                >
+                  {statsTab === "day"
+                    ? (userStats?.activeToday ?? "--")
+                    : statsTab === "week"
+                      ? (userStats?.activeThisWeek ?? "--")
+                      : (userStats?.activeThisMonth ?? "--")}
+                </div>
+              )}
+            </div>
+          </div>
+        </motion.section>
       </motion.div>
     </div>
   );
