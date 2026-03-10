@@ -24,6 +24,8 @@ import {
   AlertTriangle,
   BookOpen,
   Crown,
+  Download,
+  FileSpreadsheet,
   FileText,
   Loader2,
   Pencil,
@@ -35,7 +37,7 @@ import {
 import { AnimatePresence, motion } from "motion/react";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
-import { CA_Level, ExternalBlob, type PDFMetadata } from "../backend.d";
+import { CA_Level, ExternalBlob, type PDFMetadata } from "../backend";
 import { useInternetIdentity } from "../hooks/useInternetIdentity";
 import {
   useAddOrUpdatePDFMetadata,
@@ -44,7 +46,7 @@ import {
 } from "../hooks/useQueries";
 import { nanoid } from "../utils/nanoid";
 
-const PDF_LIMIT = 50;
+const FILE_LIMIT = 500;
 
 const LEVEL_LABELS: Record<CA_Level, string> = {
   [CA_Level.foundation]: "CA Foundation",
@@ -57,6 +59,88 @@ const LEVEL_KEYS: CA_Level[] = [
   CA_Level.intermediate,
   CA_Level.final_,
 ];
+
+// ─── File type helpers ─────────────────────────────────────────────────────────
+
+type FileType = "pdf" | "excel" | "word" | "other";
+
+function getFileType(filename: string): FileType {
+  const ext = filename.split(".").pop()?.toLowerCase() ?? "";
+  if (ext === "pdf") return "pdf";
+  if (ext === "xlsx" || ext === "xls") return "excel";
+  if (ext === "docx" || ext === "doc") return "word";
+  return "other";
+}
+
+function FileTypeIcon({
+  filename,
+  className,
+}: { filename: string; className?: string }) {
+  const type = getFileType(filename);
+  if (type === "excel") {
+    return (
+      <FileSpreadsheet
+        className={className}
+        style={{ color: "oklch(0.6 0.18 145)" }}
+      />
+    );
+  }
+  if (type === "word") {
+    return (
+      <FileText
+        className={className}
+        style={{ color: "oklch(0.55 0.18 240)" }}
+      />
+    );
+  }
+  // pdf or other
+  return (
+    <FileText className={className} style={{ color: "oklch(0.6 0.2 25)" }} />
+  );
+}
+
+function FileTypeBadge({ filename }: { filename: string }) {
+  const type = getFileType(filename);
+  const config = {
+    pdf: {
+      label: "PDF",
+      bg: "oklch(0.6 0.2 25 / 0.1)",
+      color: "oklch(0.6 0.2 25)",
+      border: "oklch(0.6 0.2 25 / 0.25)",
+    },
+    excel: {
+      label: "Excel",
+      bg: "oklch(0.6 0.18 145 / 0.1)",
+      color: "oklch(0.6 0.18 145)",
+      border: "oklch(0.6 0.18 145 / 0.25)",
+    },
+    word: {
+      label: "Word",
+      bg: "oklch(0.55 0.18 240 / 0.1)",
+      color: "oklch(0.55 0.18 240)",
+      border: "oklch(0.55 0.18 240 / 0.25)",
+    },
+    other: {
+      label: "File",
+      bg: "oklch(var(--primary) / 0.08)",
+      color: "oklch(var(--primary))",
+      border: "oklch(var(--primary) / 0.2)",
+    },
+  }[type];
+
+  return (
+    <Badge
+      className="text-xs font-heading"
+      style={{
+        background: config.bg,
+        color: config.color,
+        border: `1px solid ${config.border}`,
+      }}
+    >
+      {config.label}
+    </Badge>
+  );
+}
 
 // ─── Guest Lock Screen ─────────────────────────────────────────────────────────
 
@@ -83,8 +167,8 @@ function GuestLockScreen({ onSignIn }: { onSignIn: () => void }) {
         Personal Library
       </h2>
       <p className="text-base text-muted-foreground font-heading max-w-sm mb-8">
-        Sign in to upload and manage your personal study PDFs, organised by CA
-        level and subject.
+        Sign in to upload and manage your personal study files (PDF, Excel,
+        Word), organised by CA level and subject.
       </p>
       <Button
         onClick={onSignIn}
@@ -105,13 +189,30 @@ function GuestLockScreen({ onSignIn }: { onSignIn: () => void }) {
 
 // ─── Upload Form ───────────────────────────────────────────────────────────────
 
+const ACCEPTED_MIME_TYPES = [
+  "application/pdf",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  "application/vnd.ms-excel",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "application/msword",
+];
+
+const ACCEPTED_EXTENSIONS = [".pdf", ".xlsx", ".xls", ".docx", ".doc"];
+
+function isAcceptedFile(file: File): boolean {
+  const ext = `.${file.name.split(".").pop()?.toLowerCase() ?? ""}`;
+  return (
+    ACCEPTED_MIME_TYPES.includes(file.type) || ACCEPTED_EXTENSIONS.includes(ext)
+  );
+}
+
 function UploadForm({
   onUploaded,
-  totalPDFs,
+  totalFiles,
   atLimit,
 }: {
   onUploaded: () => void;
-  totalPDFs: number;
+  totalFiles: number;
   atLimit: boolean;
 }) {
   const [file, setFile] = useState<File | null>(null);
@@ -127,17 +228,24 @@ function UploadForm({
   const handleFileChange = (selectedFile: File | null) => {
     if (!selectedFile) return;
     setFile(selectedFile);
-    if (!name) setName(selectedFile.name.replace(/\.pdf$/i, ""));
+    if (!name) {
+      // Strip known extensions for display name
+      const stripped = selectedFile.name.replace(
+        /\.(pdf|xlsx|xls|docx|doc)$/i,
+        "",
+      );
+      setName(stripped);
+    }
   };
 
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     setIsDragging(false);
     const dropped = e.dataTransfer.files?.[0];
-    if (dropped && dropped.type === "application/pdf") {
+    if (dropped && isAcceptedFile(dropped)) {
       handleFileChange(dropped);
     } else {
-      toast.error("Please drop a PDF file");
+      toast.error("Please drop a PDF, Excel, or Word file");
     }
   };
 
@@ -146,13 +254,13 @@ function UploadForm({
 
     if (atLimit) {
       toast.error(
-        `Library limit reached (${PDF_LIMIT} PDFs). Delete some PDFs to upload more.`,
+        `Library limit reached (${FILE_LIMIT} files). Delete some files to upload more.`,
       );
       return;
     }
 
     if (!file || !name.trim() || !subject.trim() || !caLevel) {
-      toast.error("Please fill in all fields and select a PDF");
+      toast.error("Please fill in all fields and select a file");
       return;
     }
     if (uploadProgress !== null || addMeta.isPending) return;
@@ -166,9 +274,14 @@ function UploadForm({
       const rawBlob = ExternalBlob.fromBytes(bytes);
       const blob = rawBlob.withUploadProgress((pct) => setUploadProgress(pct));
 
+      // Store the original filename (with extension) in the name so we can detect file type later
+      const storedName = name.trim().includes(".")
+        ? name.trim()
+        : `${name.trim()}.${file.name.split(".").pop() ?? ""}`;
+
       const meta: PDFMetadata = {
         pdfId: nanoid(),
-        name: name.trim(),
+        name: storedName,
         subject: subject.trim(),
         caLevel: caLevel as CA_Level,
         blobKey: blob,
@@ -176,7 +289,7 @@ function UploadForm({
 
       await addMeta.mutateAsync(meta);
 
-      toast.success("PDF uploaded successfully!");
+      toast.success("File uploaded successfully!");
       setFile(null);
       setName("");
       setSubject("");
@@ -206,14 +319,15 @@ function UploadForm({
 
   const isPending = addMeta.isPending || uploadProgress !== null;
 
-  // Compute capacity state for colour coding
-  const usagePct = Math.min((totalPDFs / PDF_LIMIT) * 100, 100);
-  const isWarning = totalPDFs >= Math.floor(PDF_LIMIT * 0.8); // 40+
+  const usagePct = Math.min((totalFiles / FILE_LIMIT) * 100, 100);
+  const isWarning = totalFiles >= Math.floor(FILE_LIMIT * 0.8);
   const counterColor = atLimit
     ? "oklch(var(--destructive))"
     : isWarning
-      ? "oklch(0.75 0.18 65)" // amber tone
+      ? "oklch(0.75 0.18 65)"
       : "oklch(var(--muted-foreground))";
+
+  const fileIcon = file ? getFileType(file.name) : null;
 
   return (
     <Card
@@ -239,11 +353,11 @@ function UploadForm({
               />
             </div>
             <h3 className="font-heading font-semibold text-foreground text-sm">
-              Upload PDF
+              Upload File
             </h3>
           </div>
 
-          {/* PDF count pill */}
+          {/* File count pill */}
           <div
             className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-heading font-semibold"
             style={{
@@ -252,12 +366,18 @@ function UploadForm({
                 : isWarning
                   ? "oklch(0.75 0.18 65 / 0.1)"
                   : "oklch(var(--muted) / 0.6)",
-              border: `1px solid ${atLimit ? "oklch(var(--destructive) / 0.25)" : isWarning ? "oklch(0.75 0.18 65 / 0.3)" : "oklch(var(--border))"}`,
+              border: `1px solid ${
+                atLimit
+                  ? "oklch(var(--destructive) / 0.25)"
+                  : isWarning
+                    ? "oklch(0.75 0.18 65 / 0.3)"
+                    : "oklch(var(--border))"
+              }`,
               color: counterColor,
             }}
           >
             {atLimit && <AlertTriangle className="w-3 h-3" />}
-            {totalPDFs} / {PDF_LIMIT} PDFs
+            {totalFiles} / {FILE_LIMIT} Files
           </div>
         </div>
 
@@ -295,8 +415,8 @@ function UploadForm({
           >
             <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5" />
             <span>
-              You've reached the {PDF_LIMIT}-PDF limit. Delete some PDFs below
-              to free up space before uploading new ones.
+              You've reached the {FILE_LIMIT}-file limit. Delete some files
+              below to free up space before uploading new ones.
             </span>
           </motion.div>
         )}
@@ -342,17 +462,40 @@ function UploadForm({
             <input
               ref={fileInputRef}
               type="file"
-              accept="application/pdf"
+              accept={[
+                "application/pdf",
+                ".pdf",
+                ".xlsx",
+                ".xls",
+                ".docx",
+                ".doc",
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                "application/vnd.ms-excel",
+                "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                "application/msword",
+              ].join(",")}
               className="hidden"
               disabled={atLimit}
               onChange={(e) => handleFileChange(e.target.files?.[0] ?? null)}
             />
             {file ? (
               <>
-                <FileText
-                  className="w-8 h-8"
-                  style={{ color: "oklch(var(--primary))" }}
-                />
+                {fileIcon === "excel" ? (
+                  <FileSpreadsheet
+                    className="w-8 h-8"
+                    style={{ color: "oklch(0.6 0.18 145)" }}
+                  />
+                ) : fileIcon === "word" ? (
+                  <FileText
+                    className="w-8 h-8"
+                    style={{ color: "oklch(0.55 0.18 240)" }}
+                  />
+                ) : (
+                  <FileText
+                    className="w-8 h-8"
+                    style={{ color: "oklch(var(--primary))" }}
+                  />
+                )}
                 <p className="text-sm font-heading font-medium text-foreground text-center truncate max-w-full px-4">
                   {file.name}
                 </p>
@@ -369,10 +512,12 @@ function UploadForm({
                 <p className="text-sm font-heading font-medium text-foreground">
                   {atLimit
                     ? "Upload limit reached"
-                    : "Drop PDF here or click to browse"}
+                    : "Drop file here or click to browse"}
                 </p>
                 <p className="text-xs text-muted-foreground font-heading">
-                  {atLimit ? "Delete PDFs to upload more" : "PDF files only"}
+                  {atLimit
+                    ? "Delete files to upload more"
+                    : "PDF, Excel, Word files"}
                 </p>
               </>
             )}
@@ -411,13 +556,13 @@ function UploadForm({
             {/* Display Name */}
             <div className="space-y-1.5">
               <Label
-                htmlFor="pdf-name"
+                htmlFor="file-name"
                 className="text-xs font-heading text-muted-foreground"
               >
                 Display Name
               </Label>
               <Input
-                id="pdf-name"
+                id="file-name"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="e.g. Financial Reporting Notes"
@@ -430,13 +575,13 @@ function UploadForm({
             {/* Subject */}
             <div className="space-y-1.5">
               <Label
-                htmlFor="pdf-subject"
+                htmlFor="file-subject"
                 className="text-xs font-heading text-muted-foreground"
               >
                 Subject
               </Label>
               <Input
-                id="pdf-subject"
+                id="file-subject"
                 value={subject}
                 onChange={(e) => setSubject(e.target.value)}
                 placeholder="e.g. Financial Reporting"
@@ -507,12 +652,12 @@ function UploadForm({
             ) : atLimit ? (
               <>
                 <AlertTriangle className="w-4 h-4" />
-                Library Full ({PDF_LIMIT}/{PDF_LIMIT})
+                Library Full ({FILE_LIMIT}/{FILE_LIMIT})
               </>
             ) : (
               <>
                 <Upload className="w-4 h-4" />
-                Upload PDF
+                Upload File
               </>
             )}
           </Button>
@@ -522,22 +667,26 @@ function UploadForm({
   );
 }
 
-// ─── Edit PDF Dialog ───────────────────────────────────────────────────────────
+// ─── Edit File Dialog ──────────────────────────────────────────────────────────
 
-interface EditPDFDialogProps {
+interface EditFileDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   pdf: PDFMetadata;
   index: number;
 }
 
-function EditPDFDialog({ open, onOpenChange, pdf, index }: EditPDFDialogProps) {
+function EditFileDialog({
+  open,
+  onOpenChange,
+  pdf,
+  index,
+}: EditFileDialogProps) {
   const [editName, setEditName] = useState(pdf.name);
   const [editSubject, setEditSubject] = useState(pdf.subject);
   const [editLevel, setEditLevel] = useState<CA_Level>(pdf.caLevel);
   const updateMeta = useAddOrUpdatePDFMetadata();
 
-  // Reset form when dialog opens with the latest pdf values
   const handleOpenChange = (nextOpen: boolean) => {
     if (nextOpen) {
       setEditName(pdf.name);
@@ -560,10 +709,10 @@ function EditPDFDialog({ open, onOpenChange, pdf, index }: EditPDFDialogProps) {
         subject: editSubject.trim(),
         caLevel: editLevel,
       });
-      toast.success("PDF updated successfully!");
+      toast.success("File updated successfully!");
       onOpenChange(false);
     } catch {
-      toast.error("Failed to update PDF. Please try again.");
+      toast.error("Failed to update file. Please try again.");
     }
   };
 
@@ -591,10 +740,10 @@ function EditPDFDialog({ open, onOpenChange, pdf, index }: EditPDFDialogProps) {
                 style={{ color: "oklch(var(--primary))" }}
               />
             </div>
-            Edit PDF
+            Edit File
           </DialogTitle>
           <DialogDescription className="font-heading text-sm text-muted-foreground">
-            Rename or re-organise this PDF by updating its name, subject, or CA
+            Rename or re-organise this file by updating its name, subject, or CA
             level.
           </DialogDescription>
         </DialogHeader>
@@ -614,7 +763,7 @@ function EditPDFDialog({ open, onOpenChange, pdf, index }: EditPDFDialogProps) {
               onChange={(e) => setEditName(e.target.value)}
               placeholder="e.g. Financial Reporting Notes"
               className="h-9 text-sm font-heading"
-              data-ocid="library.edit.name_input"
+              data-ocid="library.edit.input"
             />
           </div>
 
@@ -632,7 +781,6 @@ function EditPDFDialog({ open, onOpenChange, pdf, index }: EditPDFDialogProps) {
               onChange={(e) => setEditSubject(e.target.value)}
               placeholder="e.g. Financial Reporting"
               className="h-9 text-sm font-heading"
-              data-ocid="library.edit.subject_input"
             />
           </div>
 
@@ -647,7 +795,7 @@ function EditPDFDialog({ open, onOpenChange, pdf, index }: EditPDFDialogProps) {
             >
               <SelectTrigger
                 className="h-9 text-sm font-heading"
-                data-ocid="library.edit.level_select"
+                data-ocid="library.edit.select"
               >
                 <SelectValue placeholder="Select CA level" />
               </SelectTrigger>
@@ -703,18 +851,36 @@ function EditPDFDialog({ open, onOpenChange, pdf, index }: EditPDFDialogProps) {
   );
 }
 
-// ─── PDF Card ──────────────────────────────────────────────────────────────────
+// ─── File Card ─────────────────────────────────────────────────────────────────
 
-interface PDFCardProps {
+interface FileCardProps {
   pdf: PDFMetadata;
   index: number;
-  onView: () => void;
+  onView: (url: string, name: string) => void;
   onDelete: () => void;
   isDeleting: boolean;
 }
 
-function PDFCard({ pdf, index, onView, onDelete, isDeleting }: PDFCardProps) {
+function FileCard({ pdf, index, onView, onDelete, isDeleting }: FileCardProps) {
   const [editOpen, setEditOpen] = useState(false);
+  const fileType = getFileType(pdf.name);
+
+  const handleAction = () => {
+    const url = pdf.blobKey.getDirectURL();
+    if (fileType === "pdf") {
+      onView(url, pdf.name);
+    } else {
+      // Download Excel / Word via programmatic anchor click
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = pdf.name;
+      a.style.display = "none";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      toast.success(`Downloading ${pdf.name}…`);
+    }
+  };
 
   return (
     <>
@@ -727,21 +893,28 @@ function PDFCard({ pdf, index, onView, onDelete, isDeleting }: PDFCardProps) {
           background: "oklch(var(--card))",
           border: "1px solid oklch(var(--border))",
         }}
-        data-ocid={`library.pdf.item.${index + 1}`}
+        data-ocid={`library.file.item.${index + 1}`}
       >
         {/* Icon + Info */}
         <div className="flex items-start gap-3">
           <div
             className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0"
             style={{
-              background: "oklch(var(--primary) / 0.1)",
-              border: "1px solid oklch(var(--primary) / 0.2)",
+              background:
+                fileType === "excel"
+                  ? "oklch(0.6 0.18 145 / 0.1)"
+                  : fileType === "word"
+                    ? "oklch(0.55 0.18 240 / 0.1)"
+                    : "oklch(var(--primary) / 0.1)",
+              border:
+                fileType === "excel"
+                  ? "1px solid oklch(0.6 0.18 145 / 0.25)"
+                  : fileType === "word"
+                    ? "1px solid oklch(0.55 0.18 240 / 0.25)"
+                    : "1px solid oklch(var(--primary) / 0.2)",
             }}
           >
-            <FileText
-              className="w-5 h-5"
-              style={{ color: "oklch(var(--primary))" }}
-            />
+            <FileTypeIcon filename={pdf.name} className="w-5 h-5" />
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-sm font-heading font-semibold text-foreground leading-snug truncate">
@@ -755,16 +928,7 @@ function PDFCard({ pdf, index, onView, onDelete, isDeleting }: PDFCardProps) {
 
         {/* Badge */}
         <div>
-          <Badge
-            className="text-xs font-heading"
-            style={{
-              background: "oklch(var(--primary) / 0.08)",
-              color: "oklch(var(--primary))",
-              border: "1px solid oklch(var(--primary) / 0.2)",
-            }}
-          >
-            Personal PDF
-          </Badge>
+          <FileTypeBadge filename={pdf.name} />
         </div>
 
         {/* Actions */}
@@ -772,12 +936,21 @@ function PDFCard({ pdf, index, onView, onDelete, isDeleting }: PDFCardProps) {
           <Button
             size="sm"
             variant="outline"
-            onClick={onView}
+            onClick={handleAction}
             className="flex-1 h-8 text-xs font-heading gap-1.5"
-            data-ocid={`library.pdf.view_button.${index + 1}`}
+            data-ocid={`library.file.button.${index + 1}`}
           >
-            <BookOpen className="w-3.5 h-3.5" />
-            View
+            {fileType === "pdf" ? (
+              <>
+                <BookOpen className="w-3.5 h-3.5" />
+                View
+              </>
+            ) : (
+              <>
+                <Download className="w-3.5 h-3.5" />
+                Download
+              </>
+            )}
           </Button>
           <Button
             size="sm"
@@ -788,8 +961,8 @@ function PDFCard({ pdf, index, onView, onDelete, isDeleting }: PDFCardProps) {
               color: "oklch(var(--primary))",
               borderColor: "oklch(var(--primary) / 0.3)",
             }}
-            title="Edit / Rename PDF"
-            data-ocid={`library.pdf.edit_button.${index + 1}`}
+            title="Edit / Rename file"
+            data-ocid={`library.file.edit_button.${index + 1}`}
           >
             <Pencil className="w-3.5 h-3.5" />
           </Button>
@@ -803,8 +976,8 @@ function PDFCard({ pdf, index, onView, onDelete, isDeleting }: PDFCardProps) {
               color: "oklch(var(--destructive))",
               borderColor: "oklch(var(--destructive) / 0.3)",
             }}
-            title="Delete PDF"
-            data-ocid={`library.pdf.delete_button.${index + 1}`}
+            title="Delete file"
+            data-ocid={`library.file.delete_button.${index + 1}`}
           >
             {isDeleting ? (
               <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -815,7 +988,7 @@ function PDFCard({ pdf, index, onView, onDelete, isDeleting }: PDFCardProps) {
         </div>
       </motion.div>
 
-      <EditPDFDialog
+      <EditFileDialog
         open={editOpen}
         onOpenChange={setEditOpen}
         pdf={pdf}
@@ -827,7 +1000,7 @@ function PDFCard({ pdf, index, onView, onDelete, isDeleting }: PDFCardProps) {
 
 // ─── Level Tab Content ─────────────────────────────────────────────────────────
 
-function LevelPDFs({
+function LevelFiles({
   level,
   pdfs,
   onView,
@@ -859,19 +1032,19 @@ function LevelPDFs({
           background: "oklch(var(--card))",
           border: "1px dashed oklch(var(--border))",
         }}
-        data-ocid="library.pdf.empty_state"
+        data-ocid="library.file.empty_state"
       >
         <BookOpen
           className="w-12 h-12 mx-auto mb-3"
           style={{ color: "oklch(var(--muted-foreground))" }}
         />
         <p className="text-base font-heading font-semibold text-foreground">
-          {q ? "No PDFs match your search" : "No PDFs uploaded yet"}
+          {q ? "No files match your search" : "No files uploaded yet"}
         </p>
         <p className="text-sm text-muted-foreground font-heading mt-1">
           {q
             ? "Try a different name or subject"
-            : `Upload a PDF for ${LEVEL_LABELS[level]} above to get started`}
+            : `Upload a file for ${LEVEL_LABELS[level]} above to get started`}
         </p>
       </div>
     );
@@ -880,11 +1053,11 @@ function LevelPDFs({
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
       {filtered.map((pdf, i) => (
-        <PDFCard
+        <FileCard
           key={pdf.pdfId}
           pdf={pdf}
           index={i}
-          onView={() => onView(pdf.blobKey.getDirectURL(), pdf.name)}
+          onView={onView}
           onDelete={() => onDelete(pdf.pdfId)}
           isDeleting={deletingId === pdf.pdfId}
         />
@@ -904,8 +1077,8 @@ export function LibraryPage() {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
 
-  const totalPDFs = pdfs.length;
-  const atLimit = totalPDFs >= PDF_LIMIT;
+  const totalFiles = pdfs.length;
+  const atLimit = totalFiles >= FILE_LIMIT;
 
   // Guest state
   if (!identity) {
@@ -920,9 +1093,9 @@ export function LibraryPage() {
     setDeletingId(pdfId);
     try {
       await removeMeta.mutateAsync(pdfId);
-      toast.success("PDF removed");
+      toast.success("File removed");
     } catch {
-      toast.error("Failed to remove PDF");
+      toast.error("Failed to remove file");
     } finally {
       setDeletingId(null);
     }
@@ -959,8 +1132,8 @@ export function LibraryPage() {
               Personal Library
             </h2>
             <p className="text-sm text-muted-foreground font-heading mt-0.5">
-              Upload and organise your personal study PDFs · {totalPDFs} /{" "}
-              {PDF_LIMIT} used
+              Upload and organise your personal study files (PDF, Excel, Word) ·{" "}
+              {totalFiles} / {FILE_LIMIT} used
             </p>
           </div>
         </div>
@@ -968,15 +1141,15 @@ export function LibraryPage() {
         {/* Upload Section */}
         <UploadForm
           onUploaded={() => {}}
-          totalPDFs={totalPDFs}
+          totalFiles={totalFiles}
           atLimit={atLimit}
         />
 
-        {/* PDF Grid by Level */}
+        {/* File Grid by Level */}
         <div>
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
             <h3 className="font-heading font-semibold text-foreground">
-              Your PDFs
+              Your Files
             </h3>
             <div className="relative w-full sm:w-64">
               <Search
@@ -996,7 +1169,7 @@ export function LibraryPage() {
                   onClick={() => setSearchQuery("")}
                   className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
                   aria-label="Clear search"
-                  data-ocid="library.search.clear_button"
+                  data-ocid="library.search.secondary_button"
                 >
                   <X className="w-3.5 h-3.5" />
                 </button>
@@ -1007,7 +1180,7 @@ export function LibraryPage() {
           {isLoading ? (
             <div
               className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4"
-              data-ocid="library.pdf.loading_state"
+              data-ocid="library.file.loading_state"
             >
               {["s1", "s2", "s3", "s4", "s5", "s6"].map((k) => (
                 <Skeleton key={k} className="h-44 rounded-xl" />
@@ -1029,7 +1202,7 @@ export function LibraryPage() {
 
               {LEVEL_KEYS.map((lvl) => (
                 <TabsContent key={lvl} value={lvl} className="mt-5">
-                  <LevelPDFs
+                  <LevelFiles
                     level={lvl}
                     pdfs={pdfs}
                     onView={handleView}

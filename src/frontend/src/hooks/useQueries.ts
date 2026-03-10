@@ -6,7 +6,7 @@ import type {
   TimerSession,
   TimetableSlot,
   UserProfile,
-} from "../backend.d";
+} from "../backend";
 import { useActor } from "./useActor";
 
 // ---- User Profile ----
